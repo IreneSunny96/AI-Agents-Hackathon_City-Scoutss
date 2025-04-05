@@ -14,6 +14,11 @@ const Index = () => {
     setOnboardingStep('completed');
   };
 
+  const handleLogout = () => {
+    setIsLoggedIn(false);
+    setOnboardingStep('connect');
+  };
+
   // If user is in onboarding flow
   if (onboardingStep === 'connect') {
     return <Connect onComplete={handleConnectComplete} />;
@@ -22,7 +27,7 @@ const Index = () => {
   // Main app view (placeholder for now)
   return (
     <div className="min-h-screen flex flex-col bg-background">
-      <Header />
+      <Header onLogout={handleLogout} />
       
       <main className="flex-1 container mx-auto px-4 py-8">
         <div className="max-w-3xl mx-auto">
