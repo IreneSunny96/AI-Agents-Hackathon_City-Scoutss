@@ -58,6 +58,8 @@ export const processPlacesData = async (userId: string, activityData: any[]) => 
       }
     }
     
+    console.log('Sending activity data to Edge Function, data length:', JSON.stringify(activityData).length);
+    
     const response = await fetch(`https://${SUPABASE_PROJECT_ID}.supabase.co/functions/v1/process-places-data`, {
       method: 'POST',
       headers: {
@@ -71,7 +73,14 @@ export const processPlacesData = async (userId: string, activityData: any[]) => 
     });
 
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
+      const errorText = await response.text();
+      console.error('Edge function response error:', response.status, errorText);
+      let errorData;
+      try {
+        errorData = JSON.parse(errorText);
+      } catch (e) {
+        errorData = { error: errorText || 'Unknown error' };
+      }
       throw new Error(`API error: ${response.status} - ${errorData.error || 'Unknown error'}`);
     }
 

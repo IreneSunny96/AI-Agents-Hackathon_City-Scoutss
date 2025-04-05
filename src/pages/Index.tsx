@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import Header from '@/components/layout/Header';
 import { Button } from '@/components/ui/button';
@@ -42,13 +43,29 @@ const Index = () => {
         setProcessingStage('Preparing to analyze your activities...');
         setProcessingProgress(10);
         
-        const { data: fileData, error: storageError } = await supabase.storage
-          .from('staticactivity')
-          .download('MyActivity.json');
+        // Log attempt to access the file
+        console.log('Attempting to download file from staticactivity bucket');
         
-        if (storageError || !fileData) {
-          console.error('Error downloading file:', storageError);
-          toast.error('Failed to access activity data');
+        // Use a public URL approach instead of direct download
+        const { data: publicUrl, error: publicUrlError } = await supabase.storage
+          .from('staticactivity')
+          .getPublicUrl('MyActivity.json');
+        
+        if (publicUrlError) {
+          console.error('Error getting public URL:', publicUrlError);
+          toast.error('Failed to access activity data URL');
+          setIsProcessing(false);
+          navigate('/onboarding');
+          return;
+        }
+        
+        console.log('Public URL retrieved:', publicUrl.publicUrl);
+        
+        // Fetch the data from the public URL
+        const response = await fetch(publicUrl.publicUrl);
+        if (!response.ok) {
+          console.error('Error fetching from public URL:', response.status, response.statusText);
+          toast.error(`Failed to download activity data: ${response.statusText}`);
           setIsProcessing(false);
           navigate('/onboarding');
           return;
@@ -57,13 +74,27 @@ const Index = () => {
         setProcessingStage('Downloading your activity data...');
         setProcessingProgress(30);
         
-        const jsonText = await fileData.text();
-        const activityData = JSON.parse(jsonText);
+        const jsonText = await response.text();
+        console.log('Activity data downloaded, text length:', jsonText.length);
+        
+        let activityData;
+        try {
+          activityData = JSON.parse(jsonText);
+          console.log('Successfully parsed JSON data');
+        } catch (parseError) {
+          console.error('Error parsing JSON:', parseError);
+          toast.error('Failed to parse activity data');
+          setIsProcessing(false);
+          navigate('/onboarding');
+          return;
+        }
         
         setProcessingStage('Analyzing your activities...');
         setProcessingProgress(50);
         
+        console.log('Calling processPlacesData with user ID:', user.id);
         const result = await processPlacesData(user.id, activityData);
+        console.log('Process result:', result);
         
         setProcessingStage('Finalizing your profile...');
         setProcessingProgress(80);
