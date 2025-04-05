@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
@@ -8,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
-import { Loader2, FileUpload } from 'lucide-react';
+import { Loader2, Upload } from 'lucide-react';
 import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import GoogleButton from '@/components/ui/GoogleButton';
 import { Progress } from '@/components/ui/progress';
@@ -266,7 +265,7 @@ const Onboarding = () => {
                   className="w-full mt-2"
                   onClick={() => setShowPlacesDialog(true)}
                 >
-                  <FileUpload className="mr-2 h-4 w-4" />
+                  <Upload className="mr-2 h-4 w-4" />
                   Upload & Process Places Data
                 </Button>
               </DialogTrigger>
