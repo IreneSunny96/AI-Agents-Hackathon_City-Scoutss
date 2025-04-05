@@ -2,12 +2,14 @@
 import React from 'react';
 import Header from '@/components/layout/Header';
 import { Button } from '@/components/ui/button';
-import { MapPin, Calendar, Search, ArrowRight } from 'lucide-react';
+import { MapPin, Calendar, Search, ArrowRight, UserCog } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { toast } from 'sonner';
+import { useNavigate } from 'react-router-dom';
 
 const Index = () => {
   const { profile, signOut } = useAuth();
+  const navigate = useNavigate();
   
   const handleLogout = async () => {
     try {
@@ -17,6 +19,10 @@ const Index = () => {
       console.error('Error logging out:', error);
       toast.error('Failed to log out. Please try again.');
     }
+  };
+
+  const handleSetupProfile = () => {
+    navigate('/onboarding');
   };
 
   return (
@@ -32,6 +38,16 @@ const Index = () => {
             <p className="text-lg text-muted-foreground">
               Your AI companion for exploring the city based on your interests
             </p>
+            
+            {/* Setup Profile Button */}
+            <Button 
+              onClick={handleSetupProfile}
+              className="mt-4 bg-scout-500 hover:bg-scout-600"
+              size="lg"
+            >
+              <UserCog className="mr-2 h-5 w-5" />
+              Setup Profile
+            </Button>
           </div>
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-12">
