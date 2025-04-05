@@ -8,49 +8,18 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
-import GDrivePicker from '@/components/GDrivePicker';
-import { downloadFileFromDrive, saveFileReference } from '@/utils/driveUtils';
 import { Loader2 } from 'lucide-react';
-import FileUploader from '@/components/ui/FileUploader';
+import GoogleButton from '@/components/ui/GoogleButton';
 
 const Onboarding = () => {
-  const { user, profile, updateProfile, getGoogleAuthToken } = useAuth();
+  const { user, profile, updateProfile } = useAuth();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [fullName, setFullName] = useState(profile?.full_name || user?.user_metadata?.full_name || '');
   const [age, setAge] = useState<string>('');
   const [gender, setGender] = useState(profile?.gender || '');
-  const [selectedFile, setSelectedFile] = useState<{ id: string; name: string; mimeType: string } | null>(null);
-  const [fileProcessing, setFileProcessing] = useState(false);
-  const [googleTokenAvailable, setGoogleTokenAvailable] = useState(false);
-  const [uploadedFilePath, setUploadedFilePath] = useState<string | null>(null);
+  const [isProfileSetupComplete, setIsProfileSetupComplete] = useState(false);
   
-  // Check if we have a valid Google token
-  useEffect(() => {
-    const checkGoogleToken = async () => {
-      if (user) {
-        const token = await getGoogleAuthToken();
-        setGoogleTokenAvailable(!!token);
-        
-        if (!token) {
-          console.log("No Google token available. File selection from Google Drive may not work.");
-        }
-      }
-    };
-    
-    checkGoogleToken();
-  }, [user, getGoogleAuthToken]);
-
-  const handleFileSelected = (file: { id: string; name: string; mimeType: string }) => {
-    setSelectedFile(file);
-    toast.success(`Selected file: ${file.name}`);
-  };
-
-  const handleFileUploaded = (filePath: string) => {
-    setUploadedFilePath(filePath);
-    toast.success('File uploaded successfully!');
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -69,61 +38,56 @@ const Onboarding = () => {
         return;
       }
 
-      // Update user profile
-      await updateProfile({
-        full_name: fullName,
-        gender,
-        onboarding_completed: true,
-        // We would need to update the profiles table schema to include age
-        // For now, we can store it in metadata
-      });
-
-      // If a file was selected from Google Drive, download it and save to Supabase
-      if (selectedFile && user && googleTokenAvailable) {
-        setFileProcessing(true);
-        
-        // Get the current Google auth token from session
-        const accessToken = await getGoogleAuthToken();
-        
-        if (!accessToken) {
-          toast.error('Google authentication token not available. Please try signing in again.');
+      // Show the profile setup screen
+      setIsProfileSetupComplete(true);
+      
+      // Update user profile after a short delay to show the loading state
+      setTimeout(async () => {
+        try {
+          // Update user profile
+          await updateProfile({
+            full_name: fullName,
+            gender,
+            onboarding_completed: true,
+            // We would need to update the profiles table schema to include age
+            // For now, we can store it in metadata
+          });
+          
+          toast.success('Profile updated successfully!');
+          navigate('/');
+        } catch (error) {
+          console.error('Error updating profile:', error);
+          toast.error('Failed to update profile. Please try again.');
+          setIsProfileSetupComplete(false);
+        } finally {
           setLoading(false);
-          setFileProcessing(false);
-          return;
         }
-        
-        // Download the file from Google Drive and upload to Supabase Storage
-        const storagePath = await downloadFileFromDrive(
-          selectedFile.id,
-          selectedFile.name,
-          user.id,
-          accessToken
-        );
-        
-        // Save file reference to database
-        if (storagePath) {
-          await saveFileReference(
-            user.id,
-            selectedFile.name,
-            selectedFile.id,
-            storagePath.path
-          );
-          toast.success('File saved successfully!');
-        } else {
-          toast.error('Failed to save file. Please try again.');
-        }
-      }
-
-      toast.success('Profile updated successfully!');
-      navigate('/');
+      }, 2000);
     } catch (error) {
       console.error('Error updating profile:', error);
       toast.error('Failed to update profile. Please try again.');
-    } finally {
       setLoading(false);
-      setFileProcessing(false);
     }
   };
+
+  // If we're in the profile setup complete state, show the loading screen
+  if (isProfileSetupComplete) {
+    return (
+      <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4">
+        <Card className="w-full max-w-md">
+          <CardHeader className="text-center">
+            <CardTitle className="text-2xl font-bold">Welcome {fullName.split(' ')[0]}!</CardTitle>
+          </CardHeader>
+          <CardContent className="flex flex-col items-center justify-center py-8">
+            <div className="flex items-center justify-center gap-3">
+              <Loader2 className="h-8 w-8 animate-spin text-scout-500" />
+              <p className="text-lg font-medium">Please wait while we set up your profile</p>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4">
@@ -131,7 +95,7 @@ const Onboarding = () => {
         <CardHeader className="text-center">
           <CardTitle className="text-2xl font-bold">Let's get started</CardTitle>
           <CardDescription>
-            Let's set up your profile {fullName ? fullName.split(' ')[0] : 'there'}!
+            {fullName ? `Welcome ${fullName.split(' ')[0]}!` : 'Set up your profile'}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -180,58 +144,30 @@ const Onboarding = () => {
             </div>
 
             <div className="space-y-3">
-              <Label>File Upload</Label>
+              <Label>Google Authentication</Label>
               
-              {googleTokenAvailable ? (
-                <div className="bg-muted/50 p-4 rounded-md">
-                  <p className="text-sm text-muted-foreground mb-3">
-                    Select a JSON file from your Google Drive to use with CityScout.
-                  </p>
-                  
-                  <GDrivePicker 
-                    onFileSelected={handleFileSelected}
-                    accept={['application/json']}
-                    buttonText={selectedFile ? 'Change Selected File' : 'Select File from Drive'}
-                  />
-                  
-                  {selectedFile && (
-                    <div className="mt-2 p-2 bg-primary/10 rounded text-sm">
-                      Selected: <span className="font-medium">{selectedFile.name}</span>
-                    </div>
-                  )}
-                  
-                  {fileProcessing && (
-                    <div className="mt-2 flex items-center justify-center">
-                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                      <span className="text-sm">Processing file...</span>
-                    </div>
-                  )}
-                </div>
-              ) : (
-                <div className="bg-muted/50 p-4 rounded-md">
-                  <p className="text-sm text-muted-foreground mb-3">
-                    Upload a JSON file to use with CityScout.
-                  </p>
-                  
-                  {user && (
-                    <FileUploader 
-                      userId={user.id} 
-                      onFileUploaded={handleFileUploaded}
-                      accept=".json"
-                      disabled={loading}
-                    />
-                  )}
-                </div>
-              )}
+              <div className="bg-muted/50 p-4 rounded-md">
+                <p className="text-sm text-muted-foreground mb-3">
+                  Authenticate with Google to use CityScout data.
+                </p>
+                
+                <GoogleButton 
+                  onClick={() => {
+                    // This button does nothing for now
+                    toast.info('Google authentication will be implemented later');
+                  }} 
+                  loading={false}
+                />
+              </div>
             </div>
 
             <Button type="submit" className="w-full" disabled={loading}>
               {loading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Saving...
+                  Setting up...
                 </>
-              ) : 'Complete Setup'}
+              ) : 'Set up your profile'}
             </Button>
           </form>
         </CardContent>
