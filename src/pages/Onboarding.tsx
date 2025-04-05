@@ -1,9 +1,9 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -17,13 +17,30 @@ import { Loader2 } from 'lucide-react';
 type UserFile = Tables<'user_files'>;
 
 const Onboarding = () => {
-  const { user, profile, updateProfile } = useAuth();
+  const { user, profile, updateProfile, getGoogleAuthToken } = useAuth();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [gender, setGender] = useState(profile?.gender || '');
   const [fullName, setFullName] = useState(profile?.full_name || user?.user_metadata?.full_name || '');
   const [selectedFile, setSelectedFile] = useState<{ id: string; name: string; mimeType: string } | null>(null);
   const [fileProcessing, setFileProcessing] = useState(false);
+  const [googleTokenAvailable, setGoogleTokenAvailable] = useState(false);
+  
+  // Check if we have a valid Google token
+  useEffect(() => {
+    const checkGoogleToken = async () => {
+      if (user) {
+        const token = await getGoogleAuthToken();
+        setGoogleTokenAvailable(!!token);
+        
+        if (!token) {
+          console.log("No Google token available. File selection from Google Drive may not work.");
+        }
+      }
+    };
+    
+    checkGoogleToken();
+  }, [user, getGoogleAuthToken]);
 
   const handleFileSelected = (file: { id: string; name: string; mimeType: string }) => {
     setSelectedFile(file);
@@ -52,15 +69,15 @@ const Onboarding = () => {
       if (selectedFile && user) {
         setFileProcessing(true);
         
-        // Get the current Google auth token
-        const authInstance = window.gapi?.auth2?.getAuthInstance();
-        if (!authInstance) {
-          toast.error('Google authentication not initialized');
+        // Get the current Google auth token from session
+        const accessToken = await getGoogleAuthToken();
+        
+        if (!accessToken) {
+          toast.error('Google authentication token not available. Please try signing in again.');
           setLoading(false);
+          setFileProcessing(false);
           return;
         }
-        
-        const accessToken = authInstance.currentUser.get().getAuthResponse().access_token;
         
         // Download the file from Google Drive and upload to Supabase Storage
         const storagePath = await downloadFileFromDrive(
@@ -143,6 +160,12 @@ const Onboarding = () => {
                 <p className="text-sm text-muted-foreground mb-3">
                   Select a JSON file from your Google Drive to use with CityScout.
                 </p>
+                
+                {!googleTokenAvailable && (
+                  <div className="mb-3 p-2 bg-amber-100 text-amber-800 rounded-md text-sm">
+                    You need to authorize Google Drive access. Please complete onboarding and then try again later.
+                  </div>
+                )}
                 
                 <GDrivePicker 
                   onFileSelected={handleFileSelected}

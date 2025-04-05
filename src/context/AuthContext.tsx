@@ -15,6 +15,7 @@ type AuthContextType = {
   signInWithGoogle: () => Promise<void>;
   signOut: () => Promise<void>;
   updateProfile: (updates: Partial<Profile>) => Promise<void>;
+  getGoogleAuthToken: () => Promise<string | null>;
 };
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -136,6 +137,34 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  // Get a fresh Google OAuth token from the user's session
+  const getGoogleAuthToken = async (): Promise<string | null> => {
+    try {
+      if (!session) return null;
+      
+      // Check if we need to refresh the token
+      const { data, error } = await supabase.auth.getSession();
+      
+      if (error) {
+        console.error('Error getting session:', error.message);
+        throw error;
+      }
+      
+      // For OAuth providers like Google, the provider token is in the session
+      const providerToken = data.session?.provider_token;
+      
+      if (!providerToken) {
+        console.warn('No provider token available. User may need to re-authenticate.');
+        return null;
+      }
+      
+      return providerToken;
+    } catch (error) {
+      console.error('Error getting Google auth token:', error);
+      return null;
+    }
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -146,6 +175,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         signInWithGoogle,
         signOut,
         updateProfile,
+        getGoogleAuthToken,
       }}
     >
       {children}
