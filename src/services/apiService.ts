@@ -45,11 +45,24 @@ export const processUserOnboarding = async (userId: string, profileData: any) =>
  */
 export const processPlacesData = async (userId: string, activityData: any[]) => {
   try {
+    // Get the token from local storage or session
+    const token = localStorage.getItem('sb-zgdrcbdrmnhvfzygyecx-auth-token');
+    let authToken = '';
+    
+    if (token) {
+      try {
+        const parsedToken = JSON.parse(token);
+        authToken = parsedToken.access_token || '';
+      } catch (e) {
+        console.error('Error parsing auth token:', e);
+      }
+    }
+    
     const response = await fetch(`https://${SUPABASE_PROJECT_ID}.supabase.co/functions/v1/process-places-data`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${localStorage.getItem('supabase.auth.token')}`
+        'Authorization': `Bearer ${authToken}`
       },
       body: JSON.stringify({
         userId,

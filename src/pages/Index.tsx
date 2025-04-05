@@ -1,15 +1,18 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import Header from '@/components/layout/Header';
 import { Button } from '@/components/ui/button';
-import { MapPin, Calendar, Search, ArrowRight, UserCog } from 'lucide-react';
+import { MapPin, Calendar, Search, ArrowRight, UserCog, Loader2 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
+import { supabase } from '@/integrations/supabase/client';
+import { processPlacesData } from '@/services/apiService';
 
 const Index = () => {
-  const { profile, signOut } = useAuth();
+  const { profile, signOut, user } = useAuth();
   const navigate = useNavigate();
+  const [isProcessing, setIsProcessing] = useState(false);
   
   const handleLogout = async () => {
     try {
@@ -22,7 +25,83 @@ const Index = () => {
   };
 
   const handleSetupProfile = () => {
-    navigate('/onboarding');
+    if (isProcessing) return;
+    
+    if (!user) {
+      toast.error('You need to be logged in to set up your profile');
+      navigate('/auth');
+      return;
+    }
+    
+    // First check if myactivity.json exists in the user's bucket
+    const processMyActivityFile = async () => {
+      try {
+        setIsProcessing(true);
+        toast.info('Starting profile setup process...');
+        
+        // Check if user has any files uploaded
+        const { data: userFiles, error: filesError } = await supabase
+          .from('user_files')
+          .select('*')
+          .eq('user_id', user.id)
+          .eq('file_name', 'myactivity.json')
+          .single();
+        
+        if (filesError && filesError.code !== 'PGRST116') {
+          console.error('Error fetching user files:', filesError);
+          throw new Error('Failed to check for activity data');
+        }
+        
+        if (!userFiles) {
+          // No myactivity.json file found, navigate to onboarding
+          toast.info('No activity data found. Proceeding to profile setup.');
+          navigate('/onboarding');
+          return;
+        }
+        
+        // Get the file from storage
+        const { data: fileData, error: storageError } = await supabase.storage
+          .from('user_files')
+          .download(userFiles.file_path);
+        
+        if (storageError || !fileData) {
+          console.error('Error downloading file:', storageError);
+          throw new Error('Failed to access your activity data');
+        }
+        
+        // Parse the JSON file
+        const jsonText = await fileData.text();
+        const activityData = JSON.parse(jsonText);
+        
+        // Process the data using the Edge Function
+        toast.info('Processing your activity data...');
+        const result = await processPlacesData(user.id, activityData);
+        
+        if (result && result.success) {
+          toast.success('Your places data has been successfully analyzed!');
+          
+          // Update profile to mark onboarding as completed
+          await supabase
+            .from('profiles')
+            .update({ onboarding_completed: true })
+            .eq('id', user.id);
+            
+          toast.success('Profile setup complete!');
+        } else {
+          throw new Error('Failed to process places data');
+        }
+        
+        navigate('/onboarding');
+      } catch (error) {
+        console.error('Error processing activity data:', error);
+        toast.error('There was an error processing your data. Please try again.');
+        navigate('/onboarding');
+      } finally {
+        setIsProcessing(false);
+      }
+    };
+    
+    processMyActivityFile();
   };
 
   return (
@@ -44,9 +123,19 @@ const Index = () => {
               onClick={handleSetupProfile}
               className="mt-4 bg-scout-500 hover:bg-scout-600"
               size="lg"
+              disabled={isProcessing}
             >
-              <UserCog className="mr-2 h-5 w-5" />
-              Setup Profile
+              {isProcessing ? (
+                <>
+                  <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                  Processing...
+                </>
+              ) : (
+                <>
+                  <UserCog className="mr-2 h-5 w-5" />
+                  Setup Profile
+                </>
+              )}
             </Button>
           </div>
           
