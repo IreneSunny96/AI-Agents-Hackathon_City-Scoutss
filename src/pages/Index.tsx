@@ -43,10 +43,56 @@ const Index = () => {
         setProcessingStage('Preparing to analyze your activities...');
         setProcessingProgress(10);
         
-        // Log attempt to access the file
+        // Check if the staticactivity bucket exists
+        const { data: buckets, error: bucketsError } = await supabase.storage.listBuckets();
+        
+        if (bucketsError) {
+          console.error('Error listing buckets:', bucketsError);
+          toast.error('Failed to check storage buckets');
+          setIsProcessing(false);
+          navigate('/onboarding');
+          return;
+        }
+        
+        const bucketExists = buckets.some(bucket => bucket.name === 'staticactivity');
+        console.log('Bucket exists:', bucketExists);
+        
+        if (!bucketExists) {
+          console.error('The staticactivity bucket does not exist');
+          toast.error('Storage bucket not found. Please contact support.');
+          setIsProcessing(false);
+          navigate('/onboarding');
+          return;
+        }
+        
+        // List files in the bucket to check if MyActivity.json exists
+        const { data: files, error: listError } = await supabase.storage
+          .from('staticactivity')
+          .list();
+        
+        if (listError) {
+          console.error('Error listing files in bucket:', listError);
+          toast.error('Failed to check files in storage');
+          setIsProcessing(false);
+          navigate('/onboarding');
+          return;
+        }
+        
+        const fileExists = files.some(file => file.name === 'MyActivity.json');
+        console.log('Files in bucket:', files.map(f => f.name));
+        console.log('MyActivity.json exists:', fileExists);
+        
+        if (!fileExists) {
+          console.error('MyActivity.json does not exist in the bucket');
+          toast.error('Activity data file not found. Please upload it first.');
+          setIsProcessing(false);
+          navigate('/onboarding');
+          return;
+        }
+        
+        // Proceed with getting the public URL
         console.log('Attempting to download file from staticactivity bucket');
         
-        // Use a public URL approach instead of direct download
         const { data: publicUrlData } = await supabase.storage
           .from('staticactivity')
           .getPublicUrl('MyActivity.json');
@@ -62,59 +108,70 @@ const Index = () => {
         console.log('Public URL retrieved:', publicUrlData.publicUrl);
         
         // Fetch the data from the public URL
-        const response = await fetch(publicUrlData.publicUrl);
-        if (!response.ok) {
-          console.error('Error fetching from public URL:', response.status, response.statusText);
-          toast.error(`Failed to download activity data: ${response.statusText}`);
-          setIsProcessing(false);
-          navigate('/onboarding');
-          return;
-        }
-        
         setProcessingStage('Downloading your activity data...');
         setProcessingProgress(30);
         
-        const jsonText = await response.text();
-        console.log('Activity data downloaded, text length:', jsonText.length);
-        
-        let activityData;
         try {
-          activityData = JSON.parse(jsonText);
-          console.log('Successfully parsed JSON data');
-        } catch (parseError) {
-          console.error('Error parsing JSON:', parseError);
-          toast.error('Failed to parse activity data');
-          setIsProcessing(false);
-          navigate('/onboarding');
-          return;
-        }
-        
-        setProcessingStage('Analyzing your activities...');
-        setProcessingProgress(50);
-        
-        console.log('Calling processPlacesData with user ID:', user.id);
-        const result = await processPlacesData(user.id, activityData);
-        console.log('Process result:', result);
-        
-        setProcessingStage('Finalizing your profile...');
-        setProcessingProgress(80);
-        
-        if (result && result.success) {
-          await supabase
-            .from('profiles')
-            .update({ onboarding_completed: true })
-            .eq('id', user.id);
-            
-          setProcessingProgress(100);
-          setProcessingStage('Analysis complete!');
+          const response = await fetch(publicUrlData.publicUrl);
+          console.log('Fetch response status:', response.status);
           
-          setTimeout(() => {
-            toast.success('Your places data has been successfully analyzed!');
+          if (!response.ok) {
+            console.error('Error fetching from public URL:', response.status, response.statusText);
+            toast.error(`Failed to download activity data: ${response.statusText}`);
             setIsProcessing(false);
             navigate('/onboarding');
-          }, 1500);
-        } else {
-          throw new Error('Failed to process places data');
+            return;
+          }
+          
+          const jsonText = await response.text();
+          console.log('Activity data downloaded, text length:', jsonText.length);
+          
+          // Try to parse the JSON to make sure it's valid
+          let activityData;
+          try {
+            activityData = JSON.parse(jsonText);
+            console.log('Successfully parsed JSON data');
+          } catch (parseError) {
+            console.error('Error parsing JSON:', parseError);
+            toast.error('Failed to parse activity data');
+            setIsProcessing(false);
+            navigate('/onboarding');
+            return;
+          }
+          
+          // Process the data
+          setProcessingStage('Analyzing your activities...');
+          setProcessingProgress(50);
+          
+          console.log('Calling processPlacesData with user ID:', user.id);
+          const result = await processPlacesData(user.id, activityData);
+          console.log('Process result:', result);
+          
+          setProcessingStage('Finalizing your profile...');
+          setProcessingProgress(80);
+          
+          if (result && result.success) {
+            await supabase
+              .from('profiles')
+              .update({ onboarding_completed: true })
+              .eq('id', user.id);
+              
+            setProcessingProgress(100);
+            setProcessingStage('Analysis complete!');
+            
+            setTimeout(() => {
+              toast.success('Your places data has been successfully analyzed!');
+              setIsProcessing(false);
+              navigate('/onboarding');
+            }, 1500);
+          } else {
+            throw new Error('Failed to process places data');
+          }
+        } catch (fetchError) {
+          console.error('Error fetching or processing activity data:', fetchError);
+          toast.error('Error downloading or processing the activity data');
+          setIsProcessing(false);
+          navigate('/onboarding');
         }
       } catch (error) {
         console.error('Error processing activity data:', error);
