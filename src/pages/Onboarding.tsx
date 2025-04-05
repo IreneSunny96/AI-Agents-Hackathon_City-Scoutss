@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { toast } from 'sonner';
 import { Loader2 } from 'lucide-react';
 import GoogleButton from '@/components/ui/GoogleButton';
+import { processUserOnboarding } from '@/services/apiService';
 
 const Onboarding = () => {
   const { user, profile, updateProfile } = useAuth();
@@ -19,6 +20,7 @@ const Onboarding = () => {
   const [age, setAge] = useState<string>('');
   const [gender, setGender] = useState(profile?.gender || '');
   const [isProfileSetupComplete, setIsProfileSetupComplete] = useState(false);
+  const [backendProcessing, setBackendProcessing] = useState(false);
   
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -49,11 +51,31 @@ const Onboarding = () => {
             full_name: fullName,
             gender,
             onboarding_completed: true,
-            // We would need to update the profiles table schema to include age
-            // For now, we can store it in metadata
           });
           
-          toast.success('Profile updated successfully!');
+          // Now try to call the Python backend to process the static JSON files
+          setBackendProcessing(true);
+          
+          try {
+            if (user) {
+              // Call your Python FastAPI backend
+              const result = await processUserOnboarding(user.id, {
+                fullName,
+                age: age ? Number(age) : null,
+                gender
+              });
+              
+              console.log('Backend processing result:', result);
+              toast.success('Profile setup complete!');
+            }
+          } catch (backendError) {
+            console.error('Error calling Python backend:', backendError);
+            // We'll still continue with the onboarding even if the backend fails
+            toast.error('There was an issue processing your data, but your profile has been set up.');
+          } finally {
+            setBackendProcessing(false);
+          }
+          
           navigate('/');
         } catch (error) {
           console.error('Error updating profile:', error);
@@ -77,11 +99,20 @@ const Onboarding = () => {
         <Card className="w-full max-w-md">
           <CardHeader className="text-center">
             <CardTitle className="text-2xl font-bold">Welcome {fullName.split(' ')[0]}!</CardTitle>
+            <CardDescription>
+              {backendProcessing 
+                ? 'Processing your data...' 
+                : 'Please wait while we set up your profile'}
+            </CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col items-center justify-center py-8">
             <div className="flex items-center justify-center gap-3">
               <Loader2 className="h-8 w-8 animate-spin text-scout-500" />
-              <p className="text-lg font-medium">Please wait while we set up your profile</p>
+              <p className="text-lg font-medium">
+                {backendProcessing 
+                  ? 'Connecting to backend services...' 
+                  : 'Setting up your account...'}
+              </p>
             </div>
           </CardContent>
         </Card>
