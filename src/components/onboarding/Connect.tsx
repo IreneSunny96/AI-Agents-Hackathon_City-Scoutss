@@ -36,14 +36,7 @@ const Connect: React.FC<ConnectProps> = ({ onComplete }) => {
   return (
     <div className="min-h-screen flex items-center justify-center p-4 map-grid-bg">
       <div className="w-full max-w-md">
-        {/* Brand Header */}
-        <div className="text-center mb-6">
-          <h1 className="text-3xl font-bold text-scout-500">City Scout</h1>
-          <p className="text-lg font-medium text-scout-400">Your AI City Companion</p>
-          <p className="mt-2 text-sm text-muted-foreground max-w-sm mx-auto">
-            Discover personalized recommendations for places, events, and activities tailored to your preferences and schedule.
-          </p>
-        </div>
+        {/* Brand Header - Now removed from here */}
         
         <Card className="border-scout-200 shadow-lg">
           <CardHeader className="space-y-1 text-center">
@@ -52,10 +45,13 @@ const Connect: React.FC<ConnectProps> = ({ onComplete }) => {
                 <MapPin className="h-8 w-8 text-scout-500" />
               </div>
             </div>
-            <CardTitle className="text-2xl">Enhance your CityScout experience</CardTitle>
-            <CardDescription>
-              Connect your Google account for personalized recommendations
+            <CardTitle className="text-2xl">City Scout</CardTitle>
+            <CardDescription className="font-medium text-scout-400">
+              Your AI City Companion
             </CardDescription>
+            <p className="mt-2 text-sm text-muted-foreground">
+              Discover personalized recommendations for places, events, and activities tailored to your preferences and schedule.
+            </p>
           </CardHeader>
           
           <CardContent className="space-y-6">
