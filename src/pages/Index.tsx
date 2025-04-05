@@ -1,8 +1,8 @@
 
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import Header from '@/components/layout/Header';
 import { Button } from '@/components/ui/button';
-import { MapPin, Calendar, Search, ArrowRight, UserCog, Loader2 } from 'lucide-react';
+import { MapPin, Calendar, Search, ArrowRight, UserCog, Loader2, Upload } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
@@ -10,13 +10,18 @@ import { supabase } from '@/integrations/supabase/client';
 import { processPlacesData } from '@/services/apiService';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Progress } from '@/components/ui/progress';
+import { Input } from '@/components/ui/input';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 
 const Index = () => {
   const { profile, signOut, user } = useAuth();
   const navigate = useNavigate();
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [processingStage, setProcessingStage] = useState('');
   const [processingProgress, setProcessingProgress] = useState(0);
+  const [showUploadDialog, setShowUploadDialog] = useState(false);
+  const [activityFile, setActivityFile] = useState<File | null>(null);
   
   const handleLogout = async () => {
     try {
@@ -25,6 +30,113 @@ const Index = () => {
     } catch (error) {
       console.error('Error logging out:', error);
       toast.error('Failed to log out. Please try again.');
+    }
+  };
+
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    if (files && files.length > 0) {
+      setActivityFile(files[0]);
+    }
+  };
+
+  const uploadAndProcessFile = async () => {
+    if (!activityFile || !user) {
+      toast.error('Please select a file first');
+      return;
+    }
+
+    try {
+      setIsProcessing(true);
+      setProcessingStage('Reading your activity data file...');
+      setProcessingProgress(10);
+
+      // First, ensure the bucket exists
+      try {
+        const { data: buckets } = await supabase.storage.listBuckets();
+        const bucketExists = buckets?.some(bucket => bucket.name === 'staticactivity');
+        
+        if (!bucketExists) {
+          setProcessingStage('Creating storage bucket...');
+          const { error: createBucketError } = await supabase.storage.createBucket('staticactivity', {
+            public: true
+          });
+          
+          if (createBucketError) {
+            console.error('Error creating bucket:', createBucketError);
+            throw new Error(`Failed to create storage bucket: ${createBucketError.message}`);
+          }
+        }
+      } catch (error) {
+        console.error('Error checking/creating bucket:', error);
+        setIsProcessing(false);
+        toast.error('Could not setup storage. Please try again.');
+        return;
+      }
+
+      // Upload the file
+      setProcessingStage('Uploading your activity data...');
+      setProcessingProgress(30);
+      
+      const { error: uploadError } = await supabase.storage
+        .from('staticactivity')
+        .upload('MyActivity.json', activityFile, {
+          upsert: true,
+          contentType: 'application/json'
+        });
+      
+      if (uploadError) {
+        console.error('Error uploading file:', uploadError);
+        throw new Error(`Failed to upload file: ${uploadError.message}`);
+      }
+      
+      // Parse the file
+      setProcessingStage('Parsing your activity data...');
+      setProcessingProgress(50);
+      
+      const fileContent = await activityFile.text();
+      let activityData;
+      try {
+        activityData = JSON.parse(fileContent);
+        console.log('Successfully parsed JSON data, length:', activityData.length);
+      } catch (parseError) {
+        console.error('Error parsing JSON:', parseError);
+        throw new Error('Failed to parse activity data. Is it a valid JSON file?');
+      }
+      
+      // Process the data
+      setProcessingStage('Analyzing your activities...');
+      setProcessingProgress(70);
+      
+      console.log('Calling processPlacesData with user ID:', user.id);
+      const result = await processPlacesData(user.id, activityData);
+      console.log('Process result:', result);
+      
+      if (result && result.success) {
+        setProcessingStage('Finalizing your profile...');
+        setProcessingProgress(90);
+        
+        await supabase
+          .from('profiles')
+          .update({ onboarding_completed: true })
+          .eq('id', user.id);
+          
+        setProcessingProgress(100);
+        setProcessingStage('Analysis complete!');
+        
+        setTimeout(() => {
+          toast.success('Your places data has been successfully analyzed!');
+          setIsProcessing(false);
+          setShowUploadDialog(false);
+          navigate('/');
+        }, 1500);
+      } else {
+        throw new Error('Failed to process places data');
+      }
+    } catch (error) {
+      console.error('Error processing activity file:', error);
+      toast.error(error instanceof Error ? error.message : 'There was an error processing your data. Please try again.');
+      setIsProcessing(false);
     }
   };
 
@@ -37,151 +149,7 @@ const Index = () => {
       return;
     }
     
-    const processActivityFile = async () => {
-      try {
-        setIsProcessing(true);
-        setProcessingStage('Preparing to analyze your activities...');
-        setProcessingProgress(10);
-        
-        // Check if the staticactivity bucket exists
-        const { data: buckets, error: bucketsError } = await supabase.storage.listBuckets();
-        
-        if (bucketsError) {
-          console.error('Error listing buckets:', bucketsError);
-          toast.error('Failed to check storage buckets');
-          setIsProcessing(false);
-          navigate('/onboarding');
-          return;
-        }
-        
-        const bucketExists = buckets.some(bucket => bucket.name === 'staticactivity');
-        console.log('Bucket exists:', bucketExists);
-        
-        if (!bucketExists) {
-          console.error('The staticactivity bucket does not exist');
-          toast.error('Storage bucket not found. Please contact support.');
-          setIsProcessing(false);
-          navigate('/onboarding');
-          return;
-        }
-        
-        // List files in the bucket to check if MyActivity.json exists
-        const { data: files, error: listError } = await supabase.storage
-          .from('staticactivity')
-          .list();
-        
-        if (listError) {
-          console.error('Error listing files in bucket:', listError);
-          toast.error('Failed to check files in storage');
-          setIsProcessing(false);
-          navigate('/onboarding');
-          return;
-        }
-        
-        const fileExists = files.some(file => file.name === 'MyActivity.json');
-        console.log('Files in bucket:', files.map(f => f.name));
-        console.log('MyActivity.json exists:', fileExists);
-        
-        if (!fileExists) {
-          console.error('MyActivity.json does not exist in the bucket');
-          toast.error('Activity data file not found. Please upload it first.');
-          setIsProcessing(false);
-          navigate('/onboarding');
-          return;
-        }
-        
-        // Proceed with getting the public URL
-        console.log('Attempting to download file from staticactivity bucket');
-        
-        const { data: publicUrlData } = await supabase.storage
-          .from('staticactivity')
-          .getPublicUrl('MyActivity.json');
-        
-        if (!publicUrlData || !publicUrlData.publicUrl) {
-          console.error('Failed to get public URL');
-          toast.error('Failed to access activity data URL');
-          setIsProcessing(false);
-          navigate('/onboarding');
-          return;
-        }
-        
-        console.log('Public URL retrieved:', publicUrlData.publicUrl);
-        
-        // Fetch the data from the public URL
-        setProcessingStage('Downloading your activity data...');
-        setProcessingProgress(30);
-        
-        try {
-          const response = await fetch(publicUrlData.publicUrl);
-          console.log('Fetch response status:', response.status);
-          
-          if (!response.ok) {
-            console.error('Error fetching from public URL:', response.status, response.statusText);
-            toast.error(`Failed to download activity data: ${response.statusText}`);
-            setIsProcessing(false);
-            navigate('/onboarding');
-            return;
-          }
-          
-          const jsonText = await response.text();
-          console.log('Activity data downloaded, text length:', jsonText.length);
-          
-          // Try to parse the JSON to make sure it's valid
-          let activityData;
-          try {
-            activityData = JSON.parse(jsonText);
-            console.log('Successfully parsed JSON data');
-          } catch (parseError) {
-            console.error('Error parsing JSON:', parseError);
-            toast.error('Failed to parse activity data');
-            setIsProcessing(false);
-            navigate('/onboarding');
-            return;
-          }
-          
-          // Process the data
-          setProcessingStage('Analyzing your activities...');
-          setProcessingProgress(50);
-          
-          console.log('Calling processPlacesData with user ID:', user.id);
-          const result = await processPlacesData(user.id, activityData);
-          console.log('Process result:', result);
-          
-          setProcessingStage('Finalizing your profile...');
-          setProcessingProgress(80);
-          
-          if (result && result.success) {
-            await supabase
-              .from('profiles')
-              .update({ onboarding_completed: true })
-              .eq('id', user.id);
-              
-            setProcessingProgress(100);
-            setProcessingStage('Analysis complete!');
-            
-            setTimeout(() => {
-              toast.success('Your places data has been successfully analyzed!');
-              setIsProcessing(false);
-              navigate('/onboarding');
-            }, 1500);
-          } else {
-            throw new Error('Failed to process places data');
-          }
-        } catch (fetchError) {
-          console.error('Error fetching or processing activity data:', fetchError);
-          toast.error('Error downloading or processing the activity data');
-          setIsProcessing(false);
-          navigate('/onboarding');
-        }
-      } catch (error) {
-        console.error('Error processing activity data:', error);
-        toast.error('There was an error processing your data. Please try again.');
-        setIsProcessing(false);
-        navigate('/onboarding');
-      }
-    };
-    
-    processActivityFile();
+    setShowUploadDialog(true);
   };
 
   if (isProcessing) {
@@ -269,6 +237,50 @@ const Index = () => {
                 </>
               )}
             </Button>
+
+            <Dialog open={showUploadDialog} onOpenChange={setShowUploadDialog}>
+              <DialogContent className="sm:max-w-md">
+                <DialogHeader>
+                  <DialogTitle>Upload Your Activity Data</DialogTitle>
+                  <DialogDescription>
+                    Upload your Google Maps activity data to analyze your preferences
+                  </DialogDescription>
+                </DialogHeader>
+                
+                <div className="space-y-4 py-4">
+                  <div className="space-y-2">
+                    <p className="text-sm text-muted-foreground">
+                      Please upload your MyActivity.json file from Google Takeout
+                    </p>
+                    <Input 
+                      ref={fileInputRef} 
+                      type="file" 
+                      accept=".json" 
+                      onChange={handleFileChange}
+                      disabled={isProcessing}
+                    />
+                  </div>
+                  
+                  <Button 
+                    onClick={uploadAndProcessFile}
+                    className="w-full bg-scout-500 hover:bg-scout-600"
+                    disabled={!activityFile || isProcessing}
+                  >
+                    {isProcessing ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Processing...
+                      </>
+                    ) : (
+                      <>
+                        <Upload className="mr-2 h-4 w-4" />
+                        Upload and Analyze
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </DialogContent>
+            </Dialog>
           </div>
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-12">
