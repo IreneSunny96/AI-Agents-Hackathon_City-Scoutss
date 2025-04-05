@@ -47,22 +47,22 @@ const Index = () => {
         console.log('Attempting to download file from staticactivity bucket');
         
         // Use a public URL approach instead of direct download
-        const { data: publicUrl, error: publicUrlError } = await supabase.storage
+        const { data: publicUrlData } = await supabase.storage
           .from('staticactivity')
           .getPublicUrl('MyActivity.json');
         
-        if (publicUrlError) {
-          console.error('Error getting public URL:', publicUrlError);
+        if (!publicUrlData || !publicUrlData.publicUrl) {
+          console.error('Failed to get public URL');
           toast.error('Failed to access activity data URL');
           setIsProcessing(false);
           navigate('/onboarding');
           return;
         }
         
-        console.log('Public URL retrieved:', publicUrl.publicUrl);
+        console.log('Public URL retrieved:', publicUrlData.publicUrl);
         
         // Fetch the data from the public URL
-        const response = await fetch(publicUrl.publicUrl);
+        const response = await fetch(publicUrlData.publicUrl);
         if (!response.ok) {
           console.error('Error fetching from public URL:', response.status, response.statusText);
           toast.error(`Failed to download activity data: ${response.statusText}`);
