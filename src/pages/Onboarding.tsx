@@ -9,8 +9,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Tables } from '@/integrations/supabase/types';
+import GDrivePicker from '@/components/GDrivePicker';
+import { downloadFileFromDrive, saveFileReference } from '@/utils/driveUtils';
+import { Loader2 } from 'lucide-react';
 
 type UserFile = Tables<'user_files'>;
 
@@ -20,20 +22,12 @@ const Onboarding = () => {
   const [loading, setLoading] = useState(false);
   const [gender, setGender] = useState(profile?.gender || '');
   const [fullName, setFullName] = useState(profile?.full_name || user?.user_metadata?.full_name || '');
-  const [drivePickerOpen, setDrivePickerOpen] = useState(false);
-  const [selectedFile, setSelectedFile] = useState<{ name: string; id: string } | null>(null);
+  const [selectedFile, setSelectedFile] = useState<{ id: string; name: string; mimeType: string } | null>(null);
+  const [fileProcessing, setFileProcessing] = useState(false);
 
-  // Mock function for Google Drive picker - in a real app, integrate with Google Drive API
-  const openDrivePicker = () => {
-    setDrivePickerOpen(true);
-    // In a real implementation, you would use the Google Picker API to select files
-  };
-
-  // Mock function for selecting a file from the dialog
-  const mockSelectFile = (name: string, id: string) => {
-    setSelectedFile({ name, id });
-    setDrivePickerOpen(false);
-    toast.success(`Selected file: ${name}`);
+  const handleFileSelected = (file: { id: string; name: string; mimeType: string }) => {
+    setSelectedFile(file);
+    toast.success(`Selected file: ${file.name}`);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -54,21 +48,39 @@ const Onboarding = () => {
         onboarding_completed: true
       });
 
-      // If a file was selected, save reference to database
+      // If a file was selected, download it from Google Drive and save to Supabase
       if (selectedFile && user) {
-        const { error } = await supabase
-          .from('user_files')
-          .insert({
-            user_id: user.id,
-            file_name: selectedFile.name,
-            original_drive_id: selectedFile.id,
-            metadata: { source: 'google_drive' }
-          });
-
-        if (error) {
-          console.error('Error saving file reference:', error);
-          toast.error('Failed to save file reference');
+        setFileProcessing(true);
+        
+        // Get the current Google auth token
+        const authInstance = window.gapi?.auth2?.getAuthInstance();
+        if (!authInstance) {
+          toast.error('Google authentication not initialized');
+          setLoading(false);
           return;
+        }
+        
+        const accessToken = authInstance.currentUser.get().getAuthResponse().access_token;
+        
+        // Download the file from Google Drive and upload to Supabase Storage
+        const storagePath = await downloadFileFromDrive(
+          selectedFile.id,
+          selectedFile.name,
+          user.id,
+          accessToken
+        );
+        
+        // Save file reference to database
+        if (storagePath) {
+          await saveFileReference(
+            user.id,
+            selectedFile.name,
+            selectedFile.id,
+            storagePath.path
+          );
+          toast.success('File saved successfully!');
+        } else {
+          toast.error('Failed to save file. Please try again.');
         }
       }
 
@@ -79,6 +91,7 @@ const Onboarding = () => {
       toast.error('Failed to update profile. Please try again.');
     } finally {
       setLoading(false);
+      setFileProcessing(false);
     }
   };
 
@@ -128,78 +141,41 @@ const Onboarding = () => {
               <Label>Google Drive Integration</Label>
               <div className="bg-muted/50 p-4 rounded-md">
                 <p className="text-sm text-muted-foreground mb-3">
-                  Connect to Google Drive to select a JSON file for your profile.
+                  Select a JSON file from your Google Drive to use with CityScout.
                 </p>
-                <Button 
-                  type="button"
-                  variant="outline"
-                  onClick={openDrivePicker}
-                  className="w-full"
-                  disabled={loading}
-                >
-                  {selectedFile ? 'Change Selected File' : 'Select File from Drive'}
-                </Button>
+                
+                <GDrivePicker 
+                  onFileSelected={handleFileSelected}
+                  accept={['application/json']}
+                  buttonText={selectedFile ? 'Change Selected File' : 'Select File from Drive'}
+                />
+                
                 {selectedFile && (
                   <div className="mt-2 p-2 bg-primary/10 rounded text-sm">
                     Selected: <span className="font-medium">{selectedFile.name}</span>
+                  </div>
+                )}
+                
+                {fileProcessing && (
+                  <div className="mt-2 flex items-center justify-center">
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    <span className="text-sm">Processing file...</span>
                   </div>
                 )}
               </div>
             </div>
 
             <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? 'Saving...' : 'Complete Setup'}
+              {loading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Saving...
+                </>
+              ) : 'Complete Setup'}
             </Button>
           </form>
         </CardContent>
       </Card>
-
-      {/* Mock Google Drive Picker Dialog */}
-      <Dialog open={drivePickerOpen} onOpenChange={setDrivePickerOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Select a file from Google Drive</DialogTitle>
-            <DialogDescription>
-              Choose a JSON file from your Google Drive to use with CityScout.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-2 py-4">
-            <div 
-              onClick={() => mockSelectFile('preferences.json', 'mock-id-1')} 
-              className="p-3 border rounded-md cursor-pointer hover:bg-muted flex justify-between items-center"
-            >
-              <div>
-                <p className="font-medium">preferences.json</p>
-                <p className="text-xs text-muted-foreground">JSON File • 24KB</p>
-              </div>
-              <Button size="sm" variant="ghost">Select</Button>
-            </div>
-            <div 
-              onClick={() => mockSelectFile('citydata.json', 'mock-id-2')} 
-              className="p-3 border rounded-md cursor-pointer hover:bg-muted flex justify-between items-center"
-            >
-              <div>
-                <p className="font-medium">citydata.json</p>
-                <p className="text-xs text-muted-foreground">JSON File • 128KB</p>
-              </div>
-              <Button size="sm" variant="ghost">Select</Button>
-            </div>
-            <div 
-              onClick={() => mockSelectFile('travel_history.json', 'mock-id-3')} 
-              className="p-3 border rounded-md cursor-pointer hover:bg-muted flex justify-between items-center"
-            >
-              <div>
-                <p className="font-medium">travel_history.json</p>
-                <p className="text-xs text-muted-foreground">JSON File • 56KB</p>
-              </div>
-              <Button size="sm" variant="ghost">Select</Button>
-            </div>
-          </div>
-          <div className="flex justify-end">
-            <Button variant="outline" onClick={() => setDrivePickerOpen(false)}>Cancel</Button>
-          </div>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 };
