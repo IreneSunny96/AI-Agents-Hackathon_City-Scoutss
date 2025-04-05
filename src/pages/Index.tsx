@@ -1,30 +1,24 @@
 
-import React, { useState } from 'react';
-import Connect from '@/components/onboarding/Connect';
+import React from 'react';
 import Header from '@/components/layout/Header';
 import { Button } from '@/components/ui/button';
 import { MapPin, Calendar, Search, ArrowRight } from 'lucide-react';
+import { useAuth } from '@/context/AuthContext';
+import { toast } from 'sonner';
 
 const Index = () => {
-  const [onboardingStep, setOnboardingStep] = useState('connect');
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-
-  const handleConnectComplete = () => {
-    setIsLoggedIn(true);
-    setOnboardingStep('completed');
+  const { profile, signOut } = useAuth();
+  
+  const handleLogout = async () => {
+    try {
+      await signOut();
+      toast.success('Logged out successfully');
+    } catch (error) {
+      console.error('Error logging out:', error);
+      toast.error('Failed to log out. Please try again.');
+    }
   };
 
-  const handleLogout = () => {
-    setIsLoggedIn(false);
-    setOnboardingStep('connect');
-  };
-
-  // If user is in onboarding flow
-  if (onboardingStep === 'connect') {
-    return <Connect onComplete={handleConnectComplete} />;
-  }
-
-  // Main app view (placeholder for now)
   return (
     <div className="min-h-screen flex flex-col bg-background">
       <Header onLogout={handleLogout} />
@@ -32,7 +26,9 @@ const Index = () => {
       <main className="flex-1 container mx-auto px-4 py-8">
         <div className="max-w-3xl mx-auto">
           <div className="mb-8 text-center">
-            <h1 className="text-3xl font-bold mb-2">Welcome to CityScout</h1>
+            <h1 className="text-3xl font-bold mb-2">
+              Welcome {profile?.full_name ? `${profile.full_name.split(' ')[0]}` : ''} to CityScout
+            </h1>
             <p className="text-lg text-muted-foreground">
               Your AI companion for exploring the city based on your interests
             </p>

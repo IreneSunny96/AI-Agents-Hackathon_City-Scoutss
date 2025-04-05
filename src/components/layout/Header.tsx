@@ -1,7 +1,17 @@
 
 import React from 'react';
-import { MapPin, LogOut } from 'lucide-react';
+import { MapPin, LogOut, User } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { useAuth } from '@/context/AuthContext';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { 
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger
+} from '@/components/ui/dropdown-menu';
 
 interface HeaderProps {
   transparent?: boolean;
@@ -9,6 +19,16 @@ interface HeaderProps {
 }
 
 const Header: React.FC<HeaderProps> = ({ transparent = false, onLogout }) => {
+  const { user, profile } = useAuth();
+  
+  const getInitials = (name: string) => {
+    return name
+      .split(' ')
+      .map(part => part[0])
+      .join('')
+      .toUpperCase();
+  };
+
   return (
     <header className={`w-full py-4 px-6 ${transparent ? 'absolute top-0 left-0 z-10' : 'bg-background border-b'}`}>
       <div className="container mx-auto flex justify-between items-center">
@@ -17,16 +37,32 @@ const Header: React.FC<HeaderProps> = ({ transparent = false, onLogout }) => {
           <span className="font-bold text-xl text-foreground">CityScout</span>
         </div>
         
-        {onLogout && (
-          <Button 
-            variant="ghost" 
-            size="sm" 
-            onClick={onLogout}
-            className="text-muted-foreground hover:text-foreground"
-          >
-            <LogOut className="h-4 w-4 mr-2" />
-            Logout
-          </Button>
+        {user && (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" className="relative h-10 w-10 rounded-full">
+                <Avatar className="h-10 w-10">
+                  {profile?.avatar_url ? (
+                    <AvatarImage src={profile.avatar_url} alt={profile.full_name || "User"} />
+                  ) : (
+                    <AvatarFallback>
+                      {profile?.full_name ? getInitials(profile.full_name) : <User className="h-4 w-4" />}
+                    </AvatarFallback>
+                  )}
+                </Avatar>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent className="w-56" align="end" forceMount>
+              <DropdownMenuLabel>
+                {profile?.full_name || user.email || "My Account"}
+              </DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={onLogout}>
+                <LogOut className="mr-2 h-4 w-4" />
+                <span>Log out</span>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         )}
       </div>
     </header>
