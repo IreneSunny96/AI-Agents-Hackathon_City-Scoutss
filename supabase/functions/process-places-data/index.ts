@@ -47,8 +47,64 @@ const getPlaceInfo = async (text: string): Promise<string[] | null | string> => 
   }
 };
 
+// Convert data to CSV format
+const convertToCSV = (data: any[]): string => {
+  if (!data.length) return '';
+  
+  // Get headers from the first item
+  const headers = Object.keys(data[0]);
+  const csvRows = [];
+  
+  // Add the headers
+  csvRows.push(headers.join(','));
+  
+  // Add the data rows
+  for (const row of data) {
+    const values = headers.map(header => {
+      const value = row[header];
+      // Handle array values and escape commas
+      if (Array.isArray(value)) {
+        return `"${value.join(';')}"`;
+      }
+      return typeof value === 'string' ? `"${value.replace(/"/g, '""')}"` : value;
+    });
+    csvRows.push(values.join(','));
+  }
+  
+  return csvRows.join('\n');
+};
+
+// Save file to Supabase Storage
+const saveToStorage = async (client, userId: string, fileName: string, data: any, isCsv = false): Promise<void> => {
+  try {
+    // Create buffer from the data
+    const content = isCsv ? data : JSON.stringify(data, null, 2);
+    const buffer = new TextEncoder().encode(content);
+    
+    // Ensure user folder exists in storage
+    const folderPath = `user_data/${userId}`;
+    
+    // Upload the file
+    const { error } = await client.storage
+      .from('user_files')
+      .upload(`${folderPath}/${fileName}`, buffer, {
+        contentType: isCsv ? 'text/csv' : 'application/json',
+        upsert: true
+      });
+    
+    if (error) {
+      throw error;
+    }
+    
+    console.log(`Successfully saved ${fileName} for user ${userId}`);
+  } catch (error) {
+    console.error(`Error saving ${fileName}:`, error);
+    throw error;
+  }
+};
+
 // Main processing function
-const processActivityData = async (data: any[], userId: string): Promise<object> => {
+const processActivityData = async (data: any[], userId: string, supabaseClient: any): Promise<object> => {
   console.log(`Processing activity data for user ${userId}`);
   
   try {
@@ -141,7 +197,32 @@ const processActivityData = async (data: any[], userId: string): Promise<object>
     console.log("Enhancing viewed data with place types...");
     const viewedTop20 = await enhanceWithPlaceTypes(viewedStats);
     
-    // 5. Return processed results
+    // 5. Save the processed results to storage
+    // Create a bucket if it doesn't exist
+    try {
+      const { data: bucketData } = await supabaseClient.storage.getBucket('user_files');
+      if (!bucketData) {
+        await supabaseClient.storage.createBucket('user_files', {
+          public: false,
+          allowedMimeTypes: ['application/json', 'text/csv'],
+          fileSizeLimit: 5242880, // 5MB
+        });
+        console.log("Created user_files bucket");
+      }
+    } catch (error) {
+      console.log("Bucket may already exist or error:", error.message);
+    }
+    
+    // Save JSON files
+    await saveToStorage(supabaseClient, userId, 'searches_top_20.json', searchesTop20);
+    await saveToStorage(supabaseClient, userId, 'directions_top_20.json', directionsTop20);
+    await saveToStorage(supabaseClient, userId, 'views_top_20.json', viewedTop20);
+    
+    // Save CSV for search stats
+    const searchStatsCSV = convertToCSV(searchesStats);
+    await saveToStorage(supabaseClient, userId, 'search_stats.csv', searchStatsCSV, true);
+    
+    // 6. Return processed results
     return {
       searches_top_20: searchesTop20,
       directions_top_20: directionsTop20,
@@ -150,7 +231,13 @@ const processActivityData = async (data: any[], userId: string): Promise<object>
         searches: processSearch.length,
         directions: processDirections.length,
         views: processViewed.length
-      }
+      },
+      files_created: [
+        'searches_top_20.json',
+        'directions_top_20.json',
+        'views_top_20.json',
+        'search_stats.csv'
+      ]
     };
   } catch (error) {
     console.error("Error processing activity data:", error);
@@ -184,11 +271,15 @@ serve(async (req) => {
 
     console.log(`Received request to process data for user ${userId} with ${activityData.length} entries`);
     
-    // Process the data
-    const results = await processActivityData(activityData, userId);
+    // Create a Supabase client (admin) for saving files to storage
+    const supabaseClient = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
+      { auth: { persistSession: false } }
+    );
     
-    // Store results in Supabase storage
-    // For now, let's just return the results directly
+    // Process the data and save files
+    const results = await processActivityData(activityData, userId, supabaseClient);
     
     return new Response(
       JSON.stringify({ success: true, results }),
