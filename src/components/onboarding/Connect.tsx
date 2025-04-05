@@ -36,6 +36,15 @@ const Connect: React.FC<ConnectProps> = ({ onComplete }) => {
   return (
     <div className="min-h-screen flex items-center justify-center p-4 map-grid-bg">
       <div className="w-full max-w-md">
+        {/* Brand Header */}
+        <div className="text-center mb-6">
+          <h1 className="text-3xl font-bold text-scout-500">City Scout</h1>
+          <p className="text-lg font-medium text-scout-400">Your AI City Companion</p>
+          <p className="mt-2 text-sm text-muted-foreground max-w-sm mx-auto">
+            Discover personalized recommendations for places, events, and activities tailored to your preferences and schedule.
+          </p>
+        </div>
+        
         <Card className="border-scout-200 shadow-lg">
           <CardHeader className="space-y-1 text-center">
             <div className="flex justify-center mb-2">
@@ -56,7 +65,7 @@ const Connect: React.FC<ConnectProps> = ({ onComplete }) => {
                   <MapPin className="h-4 w-4 text-scout-500" />
                 </div>
                 <div>
-                  <h3 className="font-medium">Location History</h3>
+                  <h3 className="font-medium">Google Maps & Location History</h3>
                   <p className="text-sm text-muted-foreground">
                     Get personalized suggestions based on your previous activities
                   </p>
@@ -68,7 +77,7 @@ const Connect: React.FC<ConnectProps> = ({ onComplete }) => {
                   <Calendar className="h-4 w-4 text-scout-500" />
                 </div>
                 <div>
-                  <h3 className="font-medium">Calendar Integration</h3>
+                  <h3 className="font-medium">Google Calendar</h3>
                   <p className="text-sm text-muted-foreground">
                     Plan around your schedule and existing events
                   </p>
@@ -80,7 +89,7 @@ const Connect: React.FC<ConnectProps> = ({ onComplete }) => {
                   <User className="h-4 w-4 text-scout-500" />
                 </div>
                 <div>
-                  <h3 className="font-medium">Personalized Experience</h3>
+                  <h3 className="font-medium">Google Account</h3>
                   <p className="text-sm text-muted-foreground">
                     Get recommendations that match your preferences
                   </p>
