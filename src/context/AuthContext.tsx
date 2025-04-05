@@ -29,13 +29,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const navigate = useNavigate();
 
   useEffect(() => {
-    // Set up auth state listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
         setSession(session);
         setUser(session?.user ?? null);
 
-        // Fetch profile data if user is logged in
         if (session?.user) {
           setTimeout(() => {
             fetchProfile(session.user.id);
@@ -46,7 +44,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     );
 
-    // THEN check for existing session
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setUser(session?.user ?? null);
@@ -167,7 +164,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         throw error;
       }
 
-      // Update local profile state
       setProfile(prev => prev ? { ...prev, ...updates } : null);
     } catch (error) {
       console.error('Error updating profile:', error);
@@ -179,7 +175,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       if (!session) return null;
       
-      // Check if we need to refresh the token
       const { data, error } = await supabase.auth.getSession();
       
       if (error) {
@@ -187,7 +182,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         throw error;
       }
       
-      // For OAuth providers like Google, the provider token is in the session
       const providerToken = data.session?.provider_token;
       
       if (!providerToken) {
