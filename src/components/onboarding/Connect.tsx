@@ -52,9 +52,9 @@ const Connect: React.FC<ConnectProps> = ({ onComplete }) => {
                 <MapPin className="h-8 w-8 text-scout-500" />
               </div>
             </div>
-            <CardTitle className="text-2xl">Connect to Google</CardTitle>
+            <CardTitle className="text-2xl">Enhance your CityScout experience</CardTitle>
             <CardDescription>
-              Enhance your CityScout experience by connecting your Google account
+              Connect your Google account for personalized recommendations
             </CardDescription>
           </CardHeader>
           
