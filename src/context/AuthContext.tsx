@@ -3,14 +3,9 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import { Session, User } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { useNavigate } from 'react-router-dom';
+import { Tables } from '@/integrations/supabase/types';
 
-type Profile = {
-  id: string;
-  full_name: string;
-  gender: string | null;
-  avatar_url: string | null;
-  onboarding_completed: boolean;
-};
+type Profile = Tables<'profiles'>;
 
 type AuthContextType = {
   session: Session | null;

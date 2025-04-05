@@ -10,6 +10,9 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { Tables } from '@/integrations/supabase/types';
+
+type UserFile = Tables<'user_files'>;
 
 const Onboarding = () => {
   const { user, profile, updateProfile } = useAuth();
