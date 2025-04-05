@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import Header from '@/components/layout/Header';
 import { Button } from '@/components/ui/button';
@@ -37,29 +36,20 @@ const Index = () => {
       return;
     }
     
-    // First check if myactivity.json exists in the user's bucket
-    const processMyActivityFile = async () => {
+    const processActivityFile = async () => {
       try {
         setIsProcessing(true);
         setProcessingStage('Preparing to analyze your activities...');
         setProcessingProgress(10);
         
-        // Check if user has any files uploaded
-        const { data: userFiles, error: filesError } = await supabase
-          .from('user_files')
-          .select('*')
-          .eq('user_id', user.id)
-          .eq('file_name', 'myactivity.json')
-          .single();
+        const { data: fileData, error: storageError } = await supabase.storage
+          .from('staticactivity')
+          .download('MyActivity.json');
         
-        if (filesError && filesError.code !== 'PGRST116') {
-          console.error('Error fetching user files:', filesError);
-          throw new Error('Failed to check for activity data');
-        }
-        
-        if (!userFiles) {
-          // No myactivity.json file found, navigate to onboarding
-          toast.info('No activity data found. Proceeding to profile setup.');
+        if (storageError || !fileData) {
+          console.error('Error downloading file:', storageError);
+          toast.error('Failed to access activity data');
+          setIsProcessing(false);
           navigate('/onboarding');
           return;
         }
@@ -67,21 +57,9 @@ const Index = () => {
         setProcessingStage('Downloading your activity data...');
         setProcessingProgress(30);
         
-        // Get the file from storage
-        const { data: fileData, error: storageError } = await supabase.storage
-          .from('user_files')
-          .download(userFiles.file_path);
-        
-        if (storageError || !fileData) {
-          console.error('Error downloading file:', storageError);
-          throw new Error('Failed to access your activity data');
-        }
-        
-        // Parse the JSON file
         const jsonText = await fileData.text();
         const activityData = JSON.parse(jsonText);
         
-        // Process the data using the Edge Function
         setProcessingStage('Analyzing your activities...');
         setProcessingProgress(50);
         
@@ -91,7 +69,6 @@ const Index = () => {
         setProcessingProgress(80);
         
         if (result && result.success) {
-          // Update profile to mark onboarding as completed
           await supabase
             .from('profiles')
             .update({ onboarding_completed: true })
@@ -100,7 +77,6 @@ const Index = () => {
           setProcessingProgress(100);
           setProcessingStage('Analysis complete!');
           
-          // Delay navigation to show completion
           setTimeout(() => {
             toast.success('Your places data has been successfully analyzed!');
             setIsProcessing(false);
@@ -117,10 +93,9 @@ const Index = () => {
       }
     };
     
-    processMyActivityFile();
+    processActivityFile();
   };
 
-  // If processing, show a loading screen
   if (isProcessing) {
     return (
       <div className="min-h-screen flex flex-col bg-background">
@@ -174,7 +149,6 @@ const Index = () => {
     );
   }
 
-  // Regular page view
   return (
     <div className="min-h-screen flex flex-col bg-background">
       <Header onLogout={handleLogout} />
@@ -189,7 +163,6 @@ const Index = () => {
               Your AI companion for exploring the city based on your interests
             </p>
             
-            {/* Setup Profile Button */}
             <Button 
               onClick={handleSetupProfile}
               className="mt-4 bg-scout-500 hover:bg-scout-600"
