@@ -37,6 +37,7 @@ const Index = () => {
   const [hasExistingAnalysis, setHasExistingAnalysis] = useState(false);
   const [isDataDeletionInProgress, setIsDataDeletionInProgress] = useState(false);
   const [showDeleteConfirmDialog, setShowDeleteConfirmDialog] = useState(false);
+  const [openAiKeyError, setOpenAiKeyError] = useState(false);
   
   useEffect(() => {
     if (user) {
@@ -199,6 +200,7 @@ const Index = () => {
     }
 
     try {
+      setOpenAiKeyError(false);
       setGeneratingInsights(true);
       setProcessingStage('Generating personality insights...');
       setProcessingProgress(20);
@@ -218,7 +220,14 @@ const Index = () => {
       }
     } catch (error) {
       console.error('Error generating insights:', error);
-      toast.error(error instanceof Error ? error.message : 'There was an error generating your insights. Please try again.');
+      
+      if (error instanceof Error && error.message.includes('OpenAI API key is missing')) {
+        setOpenAiKeyError(true);
+        toast.error('Missing OpenAI API key. Please contact the administrator.');
+      } else {
+        toast.error(error instanceof Error ? error.message : 'There was an error generating your insights. Please try again.');
+      }
+      
       setGeneratingInsights(false);
     }
   };
@@ -257,11 +266,23 @@ const Index = () => {
                   <h2 className="text-2xl font-bold mb-2">Analysis Complete!</h2>
                   <p className="text-muted-foreground mb-6">Your activity data has been successfully analyzed.</p>
                   
+                  {openAiKeyError ? (
+                    <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-md">
+                      <h3 className="text-red-700 font-medium mb-2">Configuration Error</h3>
+                      <p className="text-sm text-red-600 mb-2">
+                        The OpenAI API key is missing in the Supabase Edge Function configuration.
+                      </p>
+                      <p className="text-sm text-red-600">
+                        Please contact the administrator to set up the OPENAI_API_KEY in the Supabase Edge Function Secrets.
+                      </p>
+                    </div>
+                  ) : null}
+                  
                   <Button 
                     className="bg-scout-500 hover:bg-scout-600 w-full"
                     size="lg"
                     onClick={handleGenerateInsights}
-                    disabled={generatingInsights}
+                    disabled={generatingInsights || openAiKeyError}
                   >
                     {generatingInsights ? (
                       <>

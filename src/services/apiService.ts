@@ -130,6 +130,11 @@ export const generatePersonalityInsights = async (userId: string) => {
       } catch (e) {
         errorData = { error: errorText || 'Unknown error' };
       }
+      
+      if (errorText.includes('OPENAI_API_KEY not found')) {
+        throw new Error('OpenAI API key is missing. Please configure it in Supabase Edge Function Secrets.');
+      }
+      
       throw new Error(`API error: ${response.status} - ${errorData.error || 'Unknown error'}`);
     }
 
