@@ -59,15 +59,24 @@ const Connect: React.FC<ConnectProps> = ({ onComplete }) => {
           </CardHeader>
           
           <CardContent className="space-y-6">
+            <div className="text-center mb-3">
+              <p className="text-sm font-medium">
+                Connect to your Google account
+              </p>
+              <p className="text-xs text-muted-foreground">
+                City Scout uses your Google data to provide personalized recommendations
+              </p>
+            </div>
+            
             <div className="space-y-4">
               <div className="flex items-start gap-3">
                 <div className="mt-0.5 h-8 w-8 rounded-full bg-scout-100 flex items-center justify-center flex-shrink-0">
                   <MapPin className="h-4 w-4 text-scout-500" />
                 </div>
                 <div>
-                  <h3 className="font-medium">Google Maps & Location History</h3>
+                  <h3 className="font-medium">Google Maps Activity</h3>
                   <p className="text-sm text-muted-foreground">
-                    Get personalized suggestions based on your previous activities
+                    To understand places you've visited and your preferences
                   </p>
                 </div>
               </div>
@@ -79,7 +88,7 @@ const Connect: React.FC<ConnectProps> = ({ onComplete }) => {
                 <div>
                   <h3 className="font-medium">Google Calendar</h3>
                   <p className="text-sm text-muted-foreground">
-                    Plan around your schedule and existing events
+                    To find free time slots and schedule activities
                   </p>
                 </div>
               </div>
@@ -89,9 +98,9 @@ const Connect: React.FC<ConnectProps> = ({ onComplete }) => {
                   <User className="h-4 w-4 text-scout-500" />
                 </div>
                 <div>
-                  <h3 className="font-medium">Google Account</h3>
+                  <h3 className="font-medium">Google Profile</h3>
                   <p className="text-sm text-muted-foreground">
-                    Get recommendations that match your preferences
+                    For basic account information
                   </p>
                 </div>
               </div>
