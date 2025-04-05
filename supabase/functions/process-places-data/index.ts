@@ -2,17 +2,11 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-// Google Maps API client setup
-import { GoogleMapsClient } from "https://deno.land/x/googlemaps@v0.1.0/mod.ts";
-
 // Get environment variables
 const GOOGLE_MAPS_API_KEY = Deno.env.get('GOOGLE_MAPS_API_KEY');
 if (!GOOGLE_MAPS_API_KEY) {
   throw new Error("GOOGLE_MAPS_API_KEY not found in environment variables.");
 }
-
-// Initialize Google Maps client
-const gmaps = new GoogleMapsClient(GOOGLE_MAPS_API_KEY);
 
 // CORS headers
 const corsHeaders = {
@@ -34,16 +28,15 @@ const getPlaceInfo = async (text: string): Promise<string[] | null | string> => 
       return placeTypeCache[text];
     }
     
-    const placeResponse = await gmaps.findPlace({
-      input: text,
-      inputType: "textquery",
-      fields: ["types"]
-    });
+    // Use fetch directly instead of client library
+    const url = `https://maps.googleapis.com/maps/api/place/findplacefromtext/json?input=${encodeURIComponent(text)}&inputtype=textquery&fields=types&key=${GOOGLE_MAPS_API_KEY}`;
+    const response = await fetch(url);
+    const data = await response.json();
     
     let result: string[] | null = null;
     
-    if (placeResponse && placeResponse.candidates && placeResponse.candidates.length > 0) {
-      result = placeResponse.candidates[0].types || null;
+    if (data && data.candidates && data.candidates.length > 0) {
+      result = data.candidates[0].types || null;
     }
     
     placeTypeCache[text] = result;

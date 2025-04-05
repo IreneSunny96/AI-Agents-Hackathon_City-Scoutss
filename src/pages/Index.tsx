@@ -8,11 +8,15 @@ import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { processPlacesData } from '@/services/apiService';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Progress } from '@/components/ui/progress';
 
 const Index = () => {
   const { profile, signOut, user } = useAuth();
   const navigate = useNavigate();
   const [isProcessing, setIsProcessing] = useState(false);
+  const [processingStage, setProcessingStage] = useState('');
+  const [processingProgress, setProcessingProgress] = useState(0);
   
   const handleLogout = async () => {
     try {
@@ -37,7 +41,8 @@ const Index = () => {
     const processMyActivityFile = async () => {
       try {
         setIsProcessing(true);
-        toast.info('Starting profile setup process...');
+        setProcessingStage('Preparing to analyze your activities...');
+        setProcessingProgress(10);
         
         // Check if user has any files uploaded
         const { data: userFiles, error: filesError } = await supabase
@@ -59,6 +64,9 @@ const Index = () => {
           return;
         }
         
+        setProcessingStage('Downloading your activity data...');
+        setProcessingProgress(30);
+        
         // Get the file from storage
         const { data: fileData, error: storageError } = await supabase.storage
           .from('user_files')
@@ -74,36 +82,99 @@ const Index = () => {
         const activityData = JSON.parse(jsonText);
         
         // Process the data using the Edge Function
-        toast.info('Processing your activity data...');
+        setProcessingStage('Analyzing your activities...');
+        setProcessingProgress(50);
+        
         const result = await processPlacesData(user.id, activityData);
         
+        setProcessingStage('Finalizing your profile...');
+        setProcessingProgress(80);
+        
         if (result && result.success) {
-          toast.success('Your places data has been successfully analyzed!');
-          
           // Update profile to mark onboarding as completed
           await supabase
             .from('profiles')
             .update({ onboarding_completed: true })
             .eq('id', user.id);
             
-          toast.success('Profile setup complete!');
+          setProcessingProgress(100);
+          setProcessingStage('Analysis complete!');
+          
+          // Delay navigation to show completion
+          setTimeout(() => {
+            toast.success('Your places data has been successfully analyzed!');
+            setIsProcessing(false);
+            navigate('/onboarding');
+          }, 1500);
         } else {
           throw new Error('Failed to process places data');
         }
-        
-        navigate('/onboarding');
       } catch (error) {
         console.error('Error processing activity data:', error);
         toast.error('There was an error processing your data. Please try again.');
-        navigate('/onboarding');
-      } finally {
         setIsProcessing(false);
+        navigate('/onboarding');
       }
     };
     
     processMyActivityFile();
   };
 
+  // If processing, show a loading screen
+  if (isProcessing) {
+    return (
+      <div className="min-h-screen flex flex-col bg-background">
+        <Header onLogout={handleLogout} />
+        
+        <main className="flex-1 flex items-center justify-center">
+          <div className="max-w-md w-full p-8 bg-white dark:bg-gray-800 rounded-lg shadow-lg">
+            <div className="text-center mb-6">
+              <h2 className="text-2xl font-bold mb-2">Analyzing Your Activities</h2>
+              <p className="text-muted-foreground">{processingStage}</p>
+            </div>
+            
+            <div className="space-y-6">
+              <Progress value={processingProgress} className="w-full h-2" />
+              
+              <div className="space-y-4">
+                <div className="flex items-center space-x-4">
+                  <div className="w-12 h-12 rounded-full bg-scout-100 flex items-center justify-center">
+                    <MapPin className="h-6 w-6 text-scout-500" />
+                  </div>
+                  <div className="flex-1 space-y-2">
+                    <Skeleton className="h-4 w-3/4" />
+                    <Skeleton className="h-4 w-1/2" />
+                  </div>
+                </div>
+                
+                <div className="flex items-center space-x-4">
+                  <div className="w-12 h-12 rounded-full bg-scout-100 flex items-center justify-center">
+                    <Search className="h-6 w-6 text-scout-500" />
+                  </div>
+                  <div className="flex-1 space-y-2">
+                    <Skeleton className="h-4 w-3/4" />
+                    <Skeleton className="h-4 w-1/2" />
+                  </div>
+                </div>
+                
+                <div className="flex items-center space-x-4">
+                  <div className="w-12 h-12 rounded-full bg-scout-100 flex items-center justify-center">
+                    <Calendar className="h-6 w-6 text-scout-500" />
+                  </div>
+                  <div className="flex-1 space-y-2">
+                    <Skeleton className="h-4 w-3/4" />
+                    <Skeleton className="h-4 w-1/2" />
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </main>
+      </div>
+    );
+  }
+
+  // Regular page view
   return (
     <div className="min-h-screen flex flex-col bg-background">
       <Header onLogout={handleLogout} />
