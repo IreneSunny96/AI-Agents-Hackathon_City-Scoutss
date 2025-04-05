@@ -90,3 +90,52 @@ export const processPlacesData = async (userId: string, activityData: any[]) => 
     throw error;
   }
 };
+
+/**
+ * Generates personality insights based on processed data
+ * @param userId The user's ID
+ */
+export const generatePersonalityInsights = async (userId: string) => {
+  try {
+    // Get the token from local storage or session
+    const token = localStorage.getItem('sb-zgdrcbdrmnhvfzygyecx-auth-token');
+    let authToken = '';
+    
+    if (token) {
+      try {
+        const parsedToken = JSON.parse(token);
+        authToken = parsedToken.access_token || '';
+      } catch (e) {
+        console.error('Error parsing auth token:', e);
+      }
+    }
+    
+    const response = await fetch(`https://${SUPABASE_PROJECT_ID}.supabase.co/functions/v1/generate-personality-insights`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${authToken}`
+      },
+      body: JSON.stringify({
+        userId
+      }),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Edge function response error:', response.status, errorText);
+      let errorData;
+      try {
+        errorData = JSON.parse(errorText);
+      } catch (e) {
+        errorData = { error: errorText || 'Unknown error' };
+      }
+      throw new Error(`API error: ${response.status} - ${errorData.error || 'Unknown error'}`);
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error('Error generating personality insights:', error);
+    throw error;
+  }
+};

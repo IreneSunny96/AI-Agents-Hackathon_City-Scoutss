@@ -1,12 +1,12 @@
 import React, { useState, useRef } from 'react';
 import Header from '@/components/layout/Header';
 import { Button } from '@/components/ui/button';
-import { MapPin, Calendar, Search, ArrowRight, UserCog, Loader2, Upload } from 'lucide-react';
+import { MapPin, Calendar, Search, ArrowRight, UserCog, Loader2, Upload, Check } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
-import { processPlacesData } from '@/services/apiService';
+import { processPlacesData, generatePersonalityInsights } from '@/services/apiService';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Progress } from '@/components/ui/progress';
 import { Input } from '@/components/ui/input';
@@ -21,6 +21,8 @@ const Index = () => {
   const [processingProgress, setProcessingProgress] = useState(0);
   const [showUploadDialog, setShowUploadDialog] = useState(false);
   const [activityFile, setActivityFile] = useState<File | null>(null);
+  const [analysisComplete, setAnalysisComplete] = useState(false);
+  const [generatingInsights, setGeneratingInsights] = useState(false);
   
   const handleLogout = async () => {
     try {
@@ -47,6 +49,7 @@ const Index = () => {
 
     try {
       setIsProcessing(true);
+      setAnalysisComplete(false);
       setProcessingStage('Reading your activity data file...');
       setProcessingProgress(10);
       
@@ -84,13 +87,7 @@ const Index = () => {
           
         setProcessingProgress(100);
         setProcessingStage('Analysis complete!');
-        
-        setTimeout(() => {
-          toast.success('Your places data has been successfully analyzed!');
-          setIsProcessing(false);
-          setShowUploadDialog(false);
-          navigate('/');
-        }, 1500);
+        setAnalysisComplete(true);
       } else {
         throw new Error('Failed to process places data');
       }
@@ -98,6 +95,37 @@ const Index = () => {
       console.error('Error processing activity file:', error);
       toast.error(error instanceof Error ? error.message : 'There was an error processing your data. Please try again.');
       setIsProcessing(false);
+    }
+  };
+
+  const handleGenerateInsights = async () => {
+    if (!user) {
+      toast.error('You need to be logged in to generate insights');
+      return;
+    }
+
+    try {
+      setGeneratingInsights(true);
+      setProcessingStage('Generating personality insights...');
+      setProcessingProgress(20);
+
+      const result = await generatePersonalityInsights(user.id);
+      
+      if (result && result.success) {
+        setProcessingProgress(100);
+        setProcessingStage('Insights generated successfully!');
+        
+        setTimeout(() => {
+          toast.success('Your personality profile has been created!');
+          navigate('/profile');
+        }, 1500);
+      } else {
+        throw new Error('Failed to generate personality insights');
+      }
+    } catch (error) {
+      console.error('Error generating insights:', error);
+      toast.error(error instanceof Error ? error.message : 'There was an error generating your insights. Please try again.');
+      setGeneratingInsights(false);
     }
   };
 
@@ -121,45 +149,84 @@ const Index = () => {
         <main className="flex-1 flex items-center justify-center">
           <div className="max-w-md w-full p-8 bg-white dark:bg-gray-800 rounded-lg shadow-lg">
             <div className="text-center mb-6">
-              <h2 className="text-2xl font-bold mb-2">Analyzing Your Activities</h2>
-              <p className="text-muted-foreground">{processingStage}</p>
+              {analysisComplete ? (
+                <div className="flex flex-col items-center">
+                  <div className="h-16 w-16 rounded-full bg-green-100 flex items-center justify-center mb-4">
+                    <Check className="h-8 w-8 text-green-600" />
+                  </div>
+                  <h2 className="text-2xl font-bold mb-2">Analysis Complete!</h2>
+                  <p className="text-muted-foreground mb-6">Your activity data has been successfully analyzed.</p>
+                  
+                  <Button 
+                    className="bg-scout-500 hover:bg-scout-600 w-full"
+                    size="lg"
+                    onClick={handleGenerateInsights}
+                    disabled={generatingInsights}
+                  >
+                    {generatingInsights ? (
+                      <>
+                        <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                        Generating insights...
+                      </>
+                    ) : (
+                      <>
+                        Let's get your preferences!
+                      </>
+                    )}
+                  </Button>
+                </div>
+              ) : (
+                <>
+                  <h2 className="text-2xl font-bold mb-2">Analyzing Your Activities</h2>
+                  <p className="text-muted-foreground">{processingStage}</p>
+                </>
+              )}
             </div>
             
-            <div className="space-y-6">
-              <Progress value={processingProgress} className="w-full h-2" />
-              
-              <div className="space-y-4">
-                <div className="flex items-center space-x-4">
-                  <div className="w-12 h-12 rounded-full bg-scout-100 flex items-center justify-center">
-                    <MapPin className="h-6 w-6 text-scout-500" />
-                  </div>
-                  <div className="flex-1 space-y-2">
-                    <Skeleton className="h-4 w-3/4" />
-                    <Skeleton className="h-4 w-1/2" />
-                  </div>
-                </div>
+            {!analysisComplete && (
+              <div className="space-y-6">
+                <Progress value={processingProgress} className="w-full h-2" />
                 
-                <div className="flex items-center space-x-4">
-                  <div className="w-12 h-12 rounded-full bg-scout-100 flex items-center justify-center">
-                    <Search className="h-6 w-6 text-scout-500" />
+                <div className="space-y-4">
+                  <div className="flex items-center space-x-4">
+                    <div className="w-12 h-12 rounded-full bg-scout-100 flex items-center justify-center">
+                      <MapPin className="h-6 w-6 text-scout-500" />
+                    </div>
+                    <div className="flex-1 space-y-2">
+                      <Skeleton className="h-4 w-3/4" />
+                      <Skeleton className="h-4 w-1/2" />
+                    </div>
                   </div>
-                  <div className="flex-1 space-y-2">
-                    <Skeleton className="h-4 w-3/4" />
-                    <Skeleton className="h-4 w-1/2" />
+                  
+                  <div className="flex items-center space-x-4">
+                    <div className="w-12 h-12 rounded-full bg-scout-100 flex items-center justify-center">
+                      <Search className="h-6 w-6 text-scout-500" />
+                    </div>
+                    <div className="flex-1 space-y-2">
+                      <Skeleton className="h-4 w-3/4" />
+                      <Skeleton className="h-4 w-1/2" />
+                    </div>
                   </div>
-                </div>
-                
-                <div className="flex items-center space-x-4">
-                  <div className="w-12 h-12 rounded-full bg-scout-100 flex items-center justify-center">
-                    <Calendar className="h-6 w-6 text-scout-500" />
-                  </div>
-                  <div className="flex-1 space-y-2">
-                    <Skeleton className="h-4 w-3/4" />
-                    <Skeleton className="h-4 w-1/2" />
+                  
+                  <div className="flex items-center space-x-4">
+                    <div className="w-12 h-12 rounded-full bg-scout-100 flex items-center justify-center">
+                      <Calendar className="h-6 w-6 text-scout-500" />
+                    </div>
+                    <div className="flex-1 space-y-2">
+                      <Skeleton className="h-4 w-3/4" />
+                      <Skeleton className="h-4 w-1/2" />
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
+            )}
+            
+            {analysisComplete && generatingInsights && (
+              <div className="mt-6">
+                <Progress value={processingProgress} className="w-full h-2" />
+                <p className="text-sm text-center mt-4 text-muted-foreground">{processingStage}</p>
+              </div>
+            )}
           </div>
         </main>
       </div>
