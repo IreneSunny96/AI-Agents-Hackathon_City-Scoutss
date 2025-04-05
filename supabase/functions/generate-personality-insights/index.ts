@@ -1,6 +1,8 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
+import { zodToJsonSchema } from "https://esm.sh/zod-to-json-schema@3.22.3";
 
 // Get environment variables
 const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY');
@@ -13,6 +15,32 @@ const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
+
+// Define the schema for personality tiles
+const PersonalityTilesSchema = z.object({
+  'Lifestyle Vibes': z.array(z.string()),
+  'Lifestyle Vibes Reason': z.string(),
+  'Food & Drink Favorites': z.array(z.string()),
+  'Food & Drink Favorites Reason': z.string(),
+  'Go-to Activities': z.array(z.string()),
+  'Go-to Activities Reason': z.string(),
+  'Favorite Neighborhoods or Place Types': z.array(z.string()),
+  'Favorite Neighborhoods or Place Types Reason': z.string(),
+  'Travel & Exploration': z.array(z.string()),
+  'Travel & Exploration Reason': z.string(),
+  'Other': z.array(z.string()),
+  'Other Reason': z.string(),
+});
+
+// Define the schema for the entire response
+const PersonalityInsightsSchema = z.object({
+  personality_tiles: PersonalityTilesSchema
+});
+
+// Convert Zod schema to JSON schema for OpenAI
+const personalityTilesJsonSchema = zodToJsonSchema(PersonalityTilesSchema, {
+  $refStrategy: 'none',
+});
 
 // Main function to generate personality insights
 const generatePersonalityInsights = async (userId: string, supabaseClient: any) => {
@@ -264,26 +292,10 @@ For each tile:
 - Use concise, engaging language.
 - Prioritize items based on frequency and recency in the data.
 - Ensure diversity in the selections to capture various aspects of the user's preferences.
-
-Your output should be in JSON format with the following structure:
-{
-  "Lifestyle Vibes": ["descriptor1", "descriptor2", ...],
-  "Lifestyle Vibes Reason": "A brief description of the lifestyle vibes selected above based on the user's data.",
-  "Food & Drink Favorites": ["descriptor1", "descriptor2", ...],
-  "Food & Drink Favorites Reason": "A brief description of the food & drink favorites selected above based on the user's data.",
-  "Go-to Activities": ["descriptor1", "descriptor2", ...],
-  "Go-to Activities Reason": "A brief description of the go-to activities selected above based on the user's data.",
-  "Favorite Neighborhoods or Place Types": ["descriptor1", "descriptor2", ...],
-  "Favorite Neighborhoods or Place Types Reason": "A brief description of the favorite neighborhoods or place types selected above based on the user's data.",
-  "Travel & Exploration": ["descriptor1", "descriptor2", ...],
-  "Travel & Exploration Reason": "A brief description of the travel & exploration selected above based on the user's data.",
-  "Other": ["descriptor1", "descriptor2", ...],
-  "Other Reason": "A brief description of the others selected above based on the user's data."
-}
 `;
     
     // 7. Call OpenAI to generate the personality tiles
-    console.log('Calling OpenAI to generate personality tiles...');
+    console.log('Calling OpenAI to generate personality tiles with JSON schema...');
     
     const personalityTilesResponse = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
@@ -296,7 +308,7 @@ Your output should be in JSON format with the following structure:
         messages: [
           {
             role: 'system',
-            content: 'You are an AI assistant specializing in user profiling and personalization. You will return the requested data in a valid JSON format.'
+            content: 'You are an AI assistant specializing in user profiling and personalization. You will return the requested data in a specific JSON format.'
           },
           {
             role: 'user',
@@ -305,7 +317,10 @@ Your output should be in JSON format with the following structure:
         ],
         temperature: 0.7,
         max_tokens: 2000,
-        response_format: { type: "json_object" }
+        response_format: {
+          type: 'json_schema',
+          schema: personalityTilesJsonSchema
+        }
       }),
     });
     
@@ -322,8 +337,12 @@ Your output should be in JSON format with the following structure:
     let personalityTiles;
     try {
       personalityTiles = JSON.parse(personalityTilesJson);
+      
+      // Validate the response against our schema
+      PersonalityTilesSchema.parse(personalityTiles);
+      console.log('Successfully validated personality tiles data against schema');
     } catch (parseError) {
-      console.error('Error parsing personality tiles JSON:', parseError);
+      console.error('Error parsing or validating personality tiles JSON:', parseError);
       throw new Error(`Failed to parse personality tiles JSON: ${parseError.message}`);
     }
     
