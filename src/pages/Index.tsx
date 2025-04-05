@@ -1,4 +1,3 @@
-
 import React, { useState, useRef } from 'react';
 import Header from '@/components/layout/Header';
 import { Button } from '@/components/ui/button';
@@ -50,53 +49,15 @@ const Index = () => {
       setIsProcessing(true);
       setProcessingStage('Reading your activity data file...');
       setProcessingProgress(10);
-
-      // First, ensure the bucket exists
-      try {
-        const { data: buckets } = await supabase.storage.listBuckets();
-        const bucketExists = buckets?.some(bucket => bucket.name === 'staticactivity');
-        
-        if (!bucketExists) {
-          setProcessingStage('Creating storage bucket...');
-          const { error: createBucketError } = await supabase.storage.createBucket('staticactivity', {
-            public: true
-          });
-          
-          if (createBucketError) {
-            console.error('Error creating bucket:', createBucketError);
-            throw new Error(`Failed to create storage bucket: ${createBucketError.message}`);
-          }
-        }
-      } catch (error) {
-        console.error('Error checking/creating bucket:', error);
-        setIsProcessing(false);
-        toast.error('Could not setup storage. Please try again.');
-        return;
-      }
-
-      // Upload the file
-      setProcessingStage('Uploading your activity data...');
-      setProcessingProgress(30);
       
-      const { error: uploadError } = await supabase.storage
-        .from('staticactivity')
-        .upload('MyActivity.json', activityFile, {
-          upsert: true,
-          contentType: 'application/json'
-        });
-      
-      if (uploadError) {
-        console.error('Error uploading file:', uploadError);
-        throw new Error(`Failed to upload file: ${uploadError.message}`);
-      }
-      
-      // Parse the file
-      setProcessingStage('Parsing your activity data...');
-      setProcessingProgress(50);
-      
+      // Parse the file directly without using storage
       const fileContent = await activityFile.text();
       let activityData;
+      
       try {
+        setProcessingStage('Parsing your activity data...');
+        setProcessingProgress(30);
+        
         activityData = JSON.parse(fileContent);
         console.log('Successfully parsed JSON data, length:', activityData.length);
       } catch (parseError) {
@@ -104,9 +65,9 @@ const Index = () => {
         throw new Error('Failed to parse activity data. Is it a valid JSON file?');
       }
       
-      // Process the data
+      // Process the data directly
       setProcessingStage('Analyzing your activities...');
-      setProcessingProgress(70);
+      setProcessingProgress(60);
       
       console.log('Calling processPlacesData with user ID:', user.id);
       const result = await processPlacesData(user.id, activityData);
