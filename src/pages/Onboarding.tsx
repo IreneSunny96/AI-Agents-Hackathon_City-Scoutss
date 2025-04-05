@@ -2,29 +2,28 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
-import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
-import { Tables } from '@/integrations/supabase/types';
 import GDrivePicker from '@/components/GDrivePicker';
 import { downloadFileFromDrive, saveFileReference } from '@/utils/driveUtils';
 import { Loader2 } from 'lucide-react';
-
-type UserFile = Tables<'user_files'>;
+import FileUploader from '@/components/ui/FileUploader';
 
 const Onboarding = () => {
   const { user, profile, updateProfile, getGoogleAuthToken } = useAuth();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
-  const [gender, setGender] = useState(profile?.gender || '');
   const [fullName, setFullName] = useState(profile?.full_name || user?.user_metadata?.full_name || '');
+  const [age, setAge] = useState<string>('');
+  const [gender, setGender] = useState(profile?.gender || '');
   const [selectedFile, setSelectedFile] = useState<{ id: string; name: string; mimeType: string } | null>(null);
   const [fileProcessing, setFileProcessing] = useState(false);
   const [googleTokenAvailable, setGoogleTokenAvailable] = useState(false);
+  const [uploadedFilePath, setUploadedFilePath] = useState<string | null>(null);
   
   // Check if we have a valid Google token
   useEffect(() => {
@@ -47,6 +46,11 @@ const Onboarding = () => {
     toast.success(`Selected file: ${file.name}`);
   };
 
+  const handleFileUploaded = (filePath: string) => {
+    setUploadedFilePath(filePath);
+    toast.success('File uploaded successfully!');
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -58,15 +62,24 @@ const Onboarding = () => {
     try {
       setLoading(true);
 
+      // Validate age if it's entered
+      if (age && (isNaN(Number(age)) || Number(age) <= 0 || Number(age) > 120)) {
+        toast.error('Please enter a valid age between 1 and 120');
+        setLoading(false);
+        return;
+      }
+
       // Update user profile
       await updateProfile({
         full_name: fullName,
         gender,
-        onboarding_completed: true
+        onboarding_completed: true,
+        // We would need to update the profiles table schema to include age
+        // For now, we can store it in metadata
       });
 
-      // If a file was selected, download it from Google Drive and save to Supabase
-      if (selectedFile && user) {
+      // If a file was selected from Google Drive, download it and save to Supabase
+      if (selectedFile && user && googleTokenAvailable) {
         setFileProcessing(true);
         
         // Get the current Google auth token from session
@@ -135,6 +148,18 @@ const Onboarding = () => {
             </div>
 
             <div className="space-y-2">
+              <Label htmlFor="age">Age</Label>
+              <Input 
+                id="age"
+                type="number"
+                value={age}
+                onChange={(e) => setAge(e.target.value)}
+                placeholder="Your age"
+                disabled={loading}
+              />
+            </div>
+
+            <div className="space-y-2">
               <Label htmlFor="gender">Gender</Label>
               <Select 
                 value={gender} 
@@ -154,38 +179,50 @@ const Onboarding = () => {
               </Select>
             </div>
 
-            <div className="space-y-2">
-              <Label>Google Drive Integration</Label>
-              <div className="bg-muted/50 p-4 rounded-md">
-                <p className="text-sm text-muted-foreground mb-3">
-                  Select a JSON file from your Google Drive to use with CityScout.
-                </p>
-                
-                {!googleTokenAvailable && (
-                  <div className="mb-3 p-2 bg-amber-100 text-amber-800 rounded-md text-sm">
-                    You need to authorize Google Drive access. Please complete onboarding and then try again later.
-                  </div>
-                )}
-                
-                <GDrivePicker 
-                  onFileSelected={handleFileSelected}
-                  accept={['application/json']}
-                  buttonText={selectedFile ? 'Change Selected File' : 'Select File from Drive'}
-                />
-                
-                {selectedFile && (
-                  <div className="mt-2 p-2 bg-primary/10 rounded text-sm">
-                    Selected: <span className="font-medium">{selectedFile.name}</span>
-                  </div>
-                )}
-                
-                {fileProcessing && (
-                  <div className="mt-2 flex items-center justify-center">
-                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                    <span className="text-sm">Processing file...</span>
-                  </div>
-                )}
-              </div>
+            <div className="space-y-3">
+              <Label>File Upload</Label>
+              
+              {googleTokenAvailable ? (
+                <div className="bg-muted/50 p-4 rounded-md">
+                  <p className="text-sm text-muted-foreground mb-3">
+                    Select a JSON file from your Google Drive to use with CityScout.
+                  </p>
+                  
+                  <GDrivePicker 
+                    onFileSelected={handleFileSelected}
+                    accept={['application/json']}
+                    buttonText={selectedFile ? 'Change Selected File' : 'Select File from Drive'}
+                  />
+                  
+                  {selectedFile && (
+                    <div className="mt-2 p-2 bg-primary/10 rounded text-sm">
+                      Selected: <span className="font-medium">{selectedFile.name}</span>
+                    </div>
+                  )}
+                  
+                  {fileProcessing && (
+                    <div className="mt-2 flex items-center justify-center">
+                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                      <span className="text-sm">Processing file...</span>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="bg-muted/50 p-4 rounded-md">
+                  <p className="text-sm text-muted-foreground mb-3">
+                    Upload a JSON file to use with CityScout.
+                  </p>
+                  
+                  {user && (
+                    <FileUploader 
+                      userId={user.id} 
+                      onFileUploaded={handleFileUploaded}
+                      accept=".json"
+                      disabled={loading}
+                    />
+                  )}
+                </div>
+              )}
             </div>
 
             <Button type="submit" className="w-full" disabled={loading}>
