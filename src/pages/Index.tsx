@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import Header from '@/components/layout/Header';
 import { Button } from '@/components/ui/button';
 import { MapPin, Calendar, Search, ArrowRight, UserCog, Loader2, Upload, Check } from 'lucide-react';
@@ -23,7 +23,35 @@ const Index = () => {
   const [activityFile, setActivityFile] = useState<File | null>(null);
   const [analysisComplete, setAnalysisComplete] = useState(false);
   const [generatingInsights, setGeneratingInsights] = useState(false);
+  const [hasExistingAnalysis, setHasExistingAnalysis] = useState(false);
   
+  useEffect(() => {
+    if (user) {
+      checkExistingAnalysis();
+    }
+  }, [user]);
+
+  const checkExistingAnalysis = async () => {
+    if (!user) return;
+    
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('has_personality_insights')
+        .eq('id', user.id)
+        .single();
+      
+      if (error) {
+        console.error('Error checking analysis status:', error);
+        return;
+      }
+      
+      setHasExistingAnalysis(data?.has_personality_insights || false);
+    } catch (error) {
+      console.error('Error checking existing analysis:', error);
+    }
+  };
+
   const handleLogout = async () => {
     try {
       await signOut();
@@ -53,7 +81,6 @@ const Index = () => {
       setProcessingStage('Reading your activity data file...');
       setProcessingProgress(10);
       
-      // Parse the file directly without using storage
       const fileContent = await activityFile.text();
       let activityData;
       
@@ -68,7 +95,6 @@ const Index = () => {
         throw new Error('Failed to parse activity data. Is it a valid JSON file?');
       }
       
-      // Process the data directly
       setProcessingStage('Analyzing your activities...');
       setProcessingProgress(60);
       
@@ -135,6 +161,12 @@ const Index = () => {
     if (!user) {
       toast.error('You need to be logged in to set up your profile');
       navigate('/auth');
+      return;
+    }
+    
+    if (hasExistingAnalysis) {
+      setIsProcessing(true);
+      setAnalysisComplete(true);
       return;
     }
     
@@ -257,6 +289,11 @@ const Index = () => {
                 <>
                   <Loader2 className="mr-2 h-5 w-5 animate-spin" />
                   Processing...
+                </>
+              ) : hasExistingAnalysis ? (
+                <>
+                  <UserCog className="mr-2 h-5 w-5" />
+                  View Your Preferences
                 </>
               ) : (
                 <>
