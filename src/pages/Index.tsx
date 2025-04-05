@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import Header from '@/components/layout/Header';
 import { Button } from '@/components/ui/button';
-import { MapPin, Calendar, Search, ArrowRight, UserCog, Loader2, Upload, Check } from 'lucide-react';
+import { MapPin, Calendar, Search, ArrowRight, UserCog, Loader2, Upload, Check, Trash2 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
@@ -11,6 +11,17 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Progress } from '@/components/ui/progress';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { 
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 const Index = () => {
   const { profile, signOut, user } = useAuth();
@@ -24,6 +35,8 @@ const Index = () => {
   const [analysisComplete, setAnalysisComplete] = useState(false);
   const [generatingInsights, setGeneratingInsights] = useState(false);
   const [hasExistingAnalysis, setHasExistingAnalysis] = useState(false);
+  const [isDataDeletionInProgress, setIsDataDeletionInProgress] = useState(false);
+  const [showDeleteConfirmDialog, setShowDeleteConfirmDialog] = useState(false);
   
   useEffect(() => {
     if (user) {
@@ -66,6 +79,61 @@ const Index = () => {
     const files = event.target.files;
     if (files && files.length > 0) {
       setActivityFile(files[0]);
+    }
+  };
+
+  const deleteUserData = async () => {
+    if (!user) return;
+    
+    try {
+      setIsDataDeletionInProgress(true);
+      
+      const folderPath = `user_data/${user.id}`;
+      
+      const { data: files, error: listError } = await supabase
+        .storage
+        .from('user_files')
+        .list(folderPath);
+      
+      if (listError) {
+        console.error('Error listing files:', listError);
+      } else if (files && files.length > 0) {
+        for (const file of files) {
+          const { error: deleteError } = await supabase
+            .storage
+            .from('user_files')
+            .remove([`${folderPath}/${file.name}`]);
+          
+          if (deleteError) {
+            console.error(`Error deleting file ${file.name}:`, deleteError);
+          }
+        }
+      }
+      
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .update({ 
+          has_personality_insights: false,
+          personality_tiles: null
+        })
+        .eq('id', user.id);
+      
+      if (updateError) {
+        throw updateError;
+      }
+      
+      setHasExistingAnalysis(false);
+      setAnalysisComplete(false);
+      setShowDeleteConfirmDialog(false);
+      
+      toast.success('Your data has been deleted successfully');
+      
+      setShowUploadDialog(true);
+    } catch (error) {
+      console.error('Error deleting user data:', error);
+      toast.error('Failed to delete your data. Please try again.');
+    } finally {
+      setIsDataDeletionInProgress(false);
     }
   };
 
@@ -279,29 +347,73 @@ const Index = () => {
               Your AI companion for exploring the city based on your interests
             </p>
             
-            <Button 
-              onClick={handleSetupProfile}
-              className="mt-4 bg-scout-500 hover:bg-scout-600"
-              size="lg"
-              disabled={isProcessing}
-            >
-              {isProcessing ? (
-                <>
-                  <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                  Processing...
-                </>
-              ) : hasExistingAnalysis ? (
-                <>
-                  <UserCog className="mr-2 h-5 w-5" />
-                  View Your Preferences
-                </>
+            <div className="mt-4 flex justify-center">
+              {hasExistingAnalysis ? (
+                <div className="flex flex-col space-y-3 sm:flex-row sm:space-y-0 sm:space-x-3">
+                  <Button 
+                    onClick={handleSetupProfile}
+                    className="bg-scout-500 hover:bg-scout-600"
+                    size="lg"
+                  >
+                    <UserCog className="mr-2 h-5 w-5" />
+                    View Your Preferences
+                  </Button>
+                  
+                  <AlertDialog open={showDeleteConfirmDialog} onOpenChange={setShowDeleteConfirmDialog}>
+                    <AlertDialogTrigger asChild>
+                      <Button variant="outline" size="lg">
+                        <Trash2 className="mr-2 h-5 w-5" />
+                        Reset & Upload New Data
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Delete existing data?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          This will permanently delete your analyzed data and personality insights. You'll need to upload and analyze a new file.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction 
+                          onClick={deleteUserData} 
+                          className="bg-destructive hover:bg-destructive/90"
+                          disabled={isDataDeletionInProgress}
+                        >
+                          {isDataDeletionInProgress ? (
+                            <>
+                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                              Deleting...
+                            </>
+                          ) : (
+                            "Delete & Start Over"
+                          )}
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                </div>
               ) : (
-                <>
-                  <UserCog className="mr-2 h-5 w-5" />
-                  Setup Profile
-                </>
+                <Button 
+                  onClick={handleSetupProfile}
+                  className="bg-scout-500 hover:bg-scout-600"
+                  size="lg"
+                  disabled={isProcessing}
+                >
+                  {isProcessing ? (
+                    <>
+                      <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                      Processing...
+                    </>
+                  ) : (
+                    <>
+                      <UserCog className="mr-2 h-5 w-5" />
+                      Setup Profile
+                    </>
+                  )}
+                </Button>
               )}
-            </Button>
+            </div>
 
             <Dialog open={showUploadDialog} onOpenChange={setShowUploadDialog}>
               <DialogContent className="sm:max-w-md">
