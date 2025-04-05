@@ -8,9 +8,11 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
-import { Loader2 } from 'lucide-react';
+import { Loader2, FileUpload } from 'lucide-react';
+import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import GoogleButton from '@/components/ui/GoogleButton';
-import { processUserOnboarding } from '@/services/apiService';
+import { Progress } from '@/components/ui/progress';
+import { processUserOnboarding, processPlacesData } from '@/services/apiService';
 
 const Onboarding = () => {
   const { user, profile, updateProfile } = useAuth();
@@ -21,6 +23,11 @@ const Onboarding = () => {
   const [gender, setGender] = useState(profile?.gender || '');
   const [isProfileSetupComplete, setIsProfileSetupComplete] = useState(false);
   const [backendProcessing, setBackendProcessing] = useState(false);
+  const [processingStage, setProcessingStage] = useState<string>('');
+  const [processingProgress, setProcessingProgress] = useState(0);
+  const [showPlacesDialog, setShowPlacesDialog] = useState(false);
+  const [placesDataFile, setPlacesDataFile] = useState<File | null>(null);
+  const [isProcessingPlaces, setIsProcessingPlaces] = useState(false);
   
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -89,6 +96,56 @@ const Onboarding = () => {
       console.error('Error updating profile:', error);
       toast.error('Failed to update profile. Please try again.');
       setLoading(false);
+    }
+  };
+
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    if (files && files.length > 0) {
+      setPlacesDataFile(files[0]);
+    }
+  };
+
+  const processPlacesDataFile = async () => {
+    if (!placesDataFile || !user) {
+      toast.error('Please upload your Google activity data file first');
+      return;
+    }
+
+    setIsProcessingPlaces(true);
+    setProcessingStage('Reading activity data file...');
+    setProcessingProgress(10);
+
+    try {
+      // Read the file contents
+      const fileContent = await placesDataFile.text();
+      const activityData = JSON.parse(fileContent);
+
+      setProcessingStage('Processing your places data...');
+      setProcessingProgress(30);
+
+      // Process the data using the Edge Function
+      const result = await processPlacesData(user.id, activityData);
+      
+      setProcessingStage('Analyzing places preferences...');
+      setProcessingProgress(70);
+
+      // Simulate additional processing time
+      setTimeout(() => {
+        setProcessingProgress(100);
+        setProcessingStage('Analysis complete!');
+        
+        setTimeout(() => {
+          setIsProcessingPlaces(false);
+          toast.success('Your places data has been successfully analyzed!');
+          setShowPlacesDialog(false);
+        }, 1000);
+      }, 2000);
+
+    } catch (error) {
+      console.error('Error processing places data:', error);
+      toast.error('Failed to process your places data. Please try again.');
+      setIsProcessingPlaces(false);
     }
   };
 
@@ -200,6 +257,58 @@ const Onboarding = () => {
                 </>
               ) : 'Set up your profile'}
             </Button>
+            
+            <Dialog open={showPlacesDialog} onOpenChange={setShowPlacesDialog}>
+              <DialogTrigger asChild>
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  className="w-full mt-2"
+                  onClick={() => setShowPlacesDialog(true)}
+                >
+                  <FileUpload className="mr-2 h-4 w-4" />
+                  Upload & Process Places Data
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-[425px]">
+                <DialogHeader>
+                  <DialogTitle>Process Your Places Data</DialogTitle>
+                  <DialogDescription>
+                    Upload your Google Activity JSON file to analyze your place preferences
+                  </DialogDescription>
+                </DialogHeader>
+                
+                {isProcessingPlaces ? (
+                  <div className="space-y-4 py-4">
+                    <p className="text-center">{processingStage}</p>
+                    <Progress value={processingProgress} className="w-full" />
+                  </div>
+                ) : (
+                  <div className="space-y-4 py-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="places-file">Google Activity JSON File</Label>
+                      <Input 
+                        id="places-file" 
+                        type="file" 
+                        accept=".json" 
+                        onChange={handleFileChange}
+                      />
+                      <p className="text-sm text-muted-foreground">
+                        Upload your MyActivity.json file from Google Takeout
+                      </p>
+                    </div>
+                    
+                    <Button 
+                      onClick={processPlacesDataFile}
+                      className="w-full"
+                      disabled={!placesDataFile}
+                    >
+                      Process Data
+                    </Button>
+                  </div>
+                )}
+              </DialogContent>
+            </Dialog>
           </form>
         </CardContent>
       </Card>
