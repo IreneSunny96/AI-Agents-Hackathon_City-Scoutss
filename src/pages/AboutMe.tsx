@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import Header from '@/components/layout/Header';
@@ -8,9 +7,10 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
+import { DeleteAccountDialog } from '@/components/ui/delete-account-dialog';
 
 const AboutMe = () => {
-  const { user, signOut } = useAuth();
+  const { user, signOut, deleteAccount } = useAuth();
   const navigate = useNavigate();
   const [personalityReport, setPersonalityReport] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -25,7 +25,6 @@ const AboutMe = () => {
       try {
         setLoading(true);
         
-        // Try to get the report from storage
         const userFolder = `user_data/${user.id}`;
         const { data, error } = await supabase.storage
           .from('user_files')
@@ -63,12 +62,10 @@ const AboutMe = () => {
     const paragraphs = text.split('\n\n').filter(p => p.trim() !== '');
     
     return paragraphs.map((paragraph, index) => {
-      // Check if this is a section heading (starts with emoji or contains ":")
       if (paragraph.match(/^[🍜🧘‍♂️🎭✈️🏙️🔎]/) || paragraph.includes(':')) {
         return <h2 key={index} className="text-xl font-semibold mt-6 mb-3">{paragraph}</h2>;
       }
       
-      // Check for bullet points
       if (paragraph.includes('- ')) {
         const lines = paragraph.split('\n');
         const listItems = lines.filter(line => line.trim().startsWith('- '));
@@ -86,9 +83,19 @@ const AboutMe = () => {
         );
       }
       
-      // Regular paragraph
       return <p key={index} className="mb-4">{paragraph}</p>;
     });
+  };
+  
+  const handleDeleteAccount = async () => {
+    try {
+      await deleteAccount();
+      toast.success('Your account has been deleted successfully');
+      navigate('/auth');
+    } catch (error) {
+      console.error('Error deleting account:', error);
+      toast.error('Failed to delete your account. Please try again.');
+    }
   };
   
   if (loading) {
@@ -160,7 +167,7 @@ const AboutMe = () => {
             </Card>
           )}
           
-          <div className="flex justify-center mb-8">
+          <div className="flex flex-col items-center space-y-4 mb-8">
             <Button 
               onClick={() => navigate('/')}
               className="bg-scout-500 hover:bg-scout-600"
@@ -168,6 +175,8 @@ const AboutMe = () => {
               <ArrowLeft className="mr-2 h-5 w-5" />
               Back to Home
             </Button>
+            
+            <DeleteAccountDialog onConfirm={handleDeleteAccount} />
           </div>
         </div>
       </main>

@@ -8,7 +8,6 @@ import { Loader2, ArrowRight, ArrowLeft, Check } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
-import { DeleteAccountDialog } from '@/components/ui/delete-account-dialog';
 
 // Define the structure of personality tiles data
 interface PersonalityTiles {
@@ -193,17 +192,6 @@ const PreferenceSelection = () => {
     }
   };
 
-  const handleDeleteAccount = async () => {
-    try {
-      await deleteAccount();
-      toast.success('Your account has been deleted successfully');
-      navigate('/auth');
-    } catch (error) {
-      console.error('Error deleting account:', error);
-      toast.error('Failed to delete your account. Please try again.');
-    }
-  };
-
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -295,10 +283,6 @@ const PreferenceSelection = () => {
                 </>
               )}
             </Button>
-          </div>
-          
-          <div className="w-full flex justify-center mt-6 pt-6 border-t">
-            <DeleteAccountDialog onConfirm={handleDeleteAccount} />
           </div>
         </CardFooter>
       </Card>
