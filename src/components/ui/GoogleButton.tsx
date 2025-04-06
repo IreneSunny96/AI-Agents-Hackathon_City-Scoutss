@@ -15,10 +15,14 @@ const GoogleButton: React.FC<GoogleButtonProps> = ({
 }) => {
   const handleGoogleLogin = async () => {
     try {
+      // Get the current URL to use as the redirect URL
+      const redirectUrl = window.location.origin;
+      console.log("Using redirect URL:", redirectUrl);
+      
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: window.location.origin,
+          redirectTo: redirectUrl,
           scopes: 'https://www.googleapis.com/auth/drive.readonly'
         }
       });
@@ -30,6 +34,7 @@ const GoogleButton: React.FC<GoogleButtonProps> = ({
       }
       
       // The onClick will be called after successful redirect back from Google
+      // Note: this code won't execute immediately as the browser will redirect to Google
       onClick();
     } catch (error) {
       console.error("Error in Google login:", error);

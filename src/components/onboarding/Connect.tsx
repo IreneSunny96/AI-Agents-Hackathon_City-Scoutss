@@ -1,10 +1,12 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { MapPin, Calendar, User } from 'lucide-react';
 import GoogleButton from '@/components/ui/GoogleButton';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
+import { useNavigate } from 'react-router-dom';
+import { toast } from 'sonner';
 
 interface ConnectProps {
   onComplete?: () => void;
@@ -12,6 +14,36 @@ interface ConnectProps {
 
 const Connect: React.FC<ConnectProps> = ({ onComplete }) => {
   const [loading, setLoading] = useState(false);
+  const navigate = useNavigate();
+
+  // Check for authentication state on component mount
+  useEffect(() => {
+    const checkSession = async () => {
+      const { data } = await supabase.auth.getSession();
+      if (data.session) {
+        console.log("User already authenticated:", data.session.user.id);
+        if (onComplete) {
+          onComplete();
+        }
+      }
+    };
+    
+    checkSession();
+    
+    // Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      console.log("Auth state changed:", event, session ? 'session exists' : 'no session');
+      if (event === 'SIGNED_IN' && session) {
+        console.log("User signed in:", session.user.id);
+        if (onComplete) {
+          setLoading(false);
+          onComplete();
+        }
+      }
+    });
+    
+    return () => subscription.unsubscribe();
+  }, [onComplete]);
 
   const handleConnectGoogle = async () => {
     setLoading(true);
@@ -34,11 +66,8 @@ const Connect: React.FC<ConnectProps> = ({ onComplete }) => {
     } catch (error) {
       console.error("Error in demo setup:", error);
     } finally {
-      setLoading(false);
-      
-      if (onComplete) {
-        onComplete();
-      }
+      // Don't call onComplete here, it will be called by the auth state change listener
+      // We also don't reset loading here, as we want to show the loading state until auth completes
     }
   };
 
