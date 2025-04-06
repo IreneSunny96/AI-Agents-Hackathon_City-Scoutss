@@ -609,7 +609,7 @@ const Index = () => {
           <div className="mb-8 text-center">
             <h1 className="text-3xl font-bold mb-2">
               {profile?.full_name 
-                ? <>Welcome Back <span className="text-scout-500">{profile.full_name.split(' ')[0]}</span>! Here is your City Scout</>
+                ? <>Hey <span className="text-scout-500">{profile.full_name.split(' ')[0]}</span>! Here is your City Scout</>
                 : 'Welcome to CityScout'}
             </h1>
             <p className="text-lg text-muted-foreground">
