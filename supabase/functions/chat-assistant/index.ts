@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -148,11 +147,22 @@ const sendToWebhook = async (systemPrompt: string, userMessage: string) => {
     
     if (!response.ok) {
       console.error('Failed to send data to webhook:', await response.text());
+      return null;
     } else {
       console.log('Successfully sent prompt data to webhook');
+      // Try to parse the webhook response
+      try {
+        const webhookResponseData = await response.json();
+        console.log('Webhook response data:', webhookResponseData);
+        return webhookResponseData;
+      } catch (parseError) {
+        console.error('Error parsing webhook response:', parseError);
+        return null;
+      }
     }
   } catch (error) {
     console.error('Error sending data to webhook:', error);
+    return null;
   }
 };
 
@@ -214,10 +224,20 @@ Guidelines:
 7. When recommending places, consider the user's documented interests from their profile.
 8. Format your responses clearly with paragraph breaks. Don't use markdown formatting.`;
 
-    // Send the prompt data to the webhook
-    EdgeRuntime.waitUntil(sendToWebhook(systemPrompt, message));
-
-    // Call Perplexity API
+    // Send the prompt data to the webhook and get the response
+    const webhookResponse = await sendToWebhook(systemPrompt, message);
+    
+    // If we have a valid webhook response with the expected format, use it
+    if (webhookResponse && webhookResponse.choices && webhookResponse.choices[0]?.message?.content) {
+      console.log('Using webhook response');
+      return new Response(
+        JSON.stringify(webhookResponse),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+    
+    // Fallback to Perplexity API if webhook failed or returned unexpected data
+    console.log('Falling back to Perplexity API');
     const perplexityResponse = await fetch("https://api.perplexity.ai/chat/completions", {
       method: "POST",
       headers: {

@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Send, User, Bot, Loader2, ArrowLeft } from 'lucide-react';
+import { Send, User, Bot, Loader2, ArrowLeft, ExternalLink } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
@@ -13,6 +13,19 @@ interface Message {
   text: string;
   isUser: boolean;
   timestamp: Date;
+  annotations?: Annotation[];
+}
+
+interface Annotation {
+  text: string;
+  type: string;
+  start_index: number;
+  end_index: number;
+  url?: string;
+  file_citation?: {
+    file_id: string;
+    quote: string;
+  };
 }
 
 const formatMarkdown = (text: string) => {
@@ -89,6 +102,29 @@ const formatMarkdown = (text: string) => {
   return result;
 };
 
+const renderTextWithAnnotations = (text: string, annotations?: Annotation[]) => {
+  if (!annotations || annotations.length === 0) {
+    return formatMarkdown(text);
+  }
+
+  const sortedAnnotations = [...annotations].sort((a, b) => b.start_index - a.start_index);
+  
+  let result = text;
+  for (const annotation of sortedAnnotations) {
+    if (annotation.type === 'link' && annotation.url) {
+      const linkText = text.substring(annotation.start_index, annotation.end_index);
+      const link = `[${linkText}](${annotation.url})`;
+      result = result.substring(0, annotation.start_index) + link + result.substring(annotation.end_index);
+    } else if (annotation.type === 'file_citation' && annotation.file_citation) {
+      const citationText = text.substring(annotation.start_index, annotation.end_index);
+      const citation = `[${citationText} (Source: ${annotation.file_citation.quote})]`;
+      result = result.substring(0, annotation.start_index) + citation + result.substring(annotation.end_index);
+    }
+  }
+  
+  return formatMarkdown(result);
+};
+
 const ChatInterface: React.FC = () => {
   const [input, setInput] = useState('');
   const [messages, setMessages] = useState<Message[]>([]);
@@ -151,14 +187,16 @@ const ChatInterface: React.FC = () => {
         throw new Error(`Error calling chat assistant: ${error.message}`);
       }
       
-      setMessages((prev) => [
-        ...prev,
-        {
-          text: data.reply,
-          isUser: false,
-          timestamp: new Date()
-        }
-      ]);
+      const responseMessage: Message = {
+        text: data.reply || data.choices?.[0]?.message?.content || "I couldn't process your request properly.",
+        isUser: false,
+        timestamp: new Date(),
+        annotations: data.choices?.[0]?.annotations || []
+      };
+      
+      console.log('Response with annotations:', responseMessage);
+      
+      setMessages((prev) => [...prev, responseMessage]);
     } catch (error) {
       console.error('Error sending message:', error);
       toast.error('Failed to get a response. Please try again.');
@@ -233,9 +271,33 @@ const ChatInterface: React.FC = () => {
                   ) : (
                     <div className={cn("prose prose-sm max-w-none", 
                       message.isUser ? "prose-invert" : "")}>
-                      {formatMarkdown(message.text)}
+                      {message.annotations ? 
+                        renderTextWithAnnotations(message.text, message.annotations) : 
+                        formatMarkdown(message.text)}
                     </div>
                   )}
+                  
+                  {message.annotations && message.annotations.length > 0 && (
+                    <div className="mt-2 pt-2 border-t border-gray-200 dark:border-gray-700">
+                      <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Sources:</p>
+                      <ul className="space-y-1">
+                        {message.annotations.filter(a => a.type === 'link' && a.url).map((annotation, i) => (
+                          <li key={i} className="text-xs flex items-center">
+                            <ExternalLink className="h-3 w-3 mr-1 text-scout-500" />
+                            <a 
+                              href={annotation.url} 
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                              className="text-scout-500 hover:underline"
+                            >
+                              {annotation.url}
+                            </a>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                  
                   <div 
                     className={`text-xs mt-1 ${
                       message.isUser ? 'text-scout-100' : 'text-gray-500 dark:text-gray-400'
