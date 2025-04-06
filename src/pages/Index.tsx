@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import Header from '@/components/layout/Header';
 import { Button } from '@/components/ui/button';
-import { MapPin, Calendar, Search, ArrowRight, UserCog, Loader2, Upload, Check, Trash2 } from 'lucide-react';
+import { MapPin, Calendar, Search, ArrowRight, UserCog, Loader2, Upload, Check, Trash2, ArrowLeft } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
@@ -22,7 +22,8 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import ChatInterface from '@/components/chat/ChatInterface';
+import { Card, CardContent } from '@/components/ui/card';
+import { User, Bot, Send } from 'lucide-react';
 
 const Index = () => {
   const { profile, signOut, user } = useAuth();
@@ -40,11 +41,21 @@ const Index = () => {
   const [showDeleteConfirmDialog, setShowDeleteConfirmDialog] = useState(false);
   const [openAiKeyError, setOpenAiKeyError] = useState(false);
   
+  const [searchInput, setSearchInput] = useState('');
+  const [isChatting, setIsChatting] = useState(false);
+  const [messages, setMessages] = useState<Array<{text: string, isUser: boolean, timestamp: Date}>>([]);
+  const [isLoadingResponse, setIsLoadingResponse] = useState(false);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  
   useEffect(() => {
     if (user) {
       checkExistingAnalysis();
     }
   }, [user]);
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
 
   const checkExistingAnalysis = async () => {
     if (!user) return;
@@ -248,6 +259,56 @@ const Index = () => {
     }
     
     setShowUploadDialog(true);
+  };
+
+  const handleSearchSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!searchInput.trim() || !user) return;
+    
+    const userMessage = {
+      text: searchInput,
+      isUser: true,
+      timestamp: new Date()
+    };
+    
+    setMessages(prevMessages => [...prevMessages, userMessage]);
+    setIsLoadingResponse(true);
+    setIsChatting(true);
+    setSearchInput('');
+    
+    try {
+      const { data, error } = await supabase.functions.invoke('chat-assistant', {
+        body: { message: userMessage.text, userId: user.id }
+      });
+      
+      if (error) {
+        throw new Error(`Error calling chat assistant: ${error.message}`);
+      }
+      
+      setMessages(prevMessages => [
+        ...prevMessages,
+        {
+          text: data.reply,
+          isUser: false,
+          timestamp: new Date()
+        }
+      ]);
+    } catch (error) {
+      console.error('Error sending message:', error);
+      toast.error('Failed to get a response. Please try again.');
+      
+      setMessages(prevMessages => [
+        ...prevMessages,
+        {
+          text: "I'm sorry, I couldn't process your request. Please try again later.",
+          isUser: false,
+          timestamp: new Date()
+        }
+      ]);
+    } finally {
+      setIsLoadingResponse(false);
+    }
   };
 
   if (isProcessing) {
@@ -490,45 +551,40 @@ const Index = () => {
           </div>
           
           {hasExistingAnalysis && (
-            <div className="mb-12">
-              <h2 className="text-2xl font-semibold mb-4">Chat with CityScout</h2>
-              <ChatInterface />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-12">
+              <div className="bg-white dark:bg-gray-800 rounded-lg border p-6 shadow-sm">
+                <div className="mb-4">
+                  <div className="h-12 w-12 rounded-full bg-scout-100 flex items-center justify-center">
+                    <MapPin className="h-6 w-6 text-scout-500" />
+                  </div>
+                </div>
+                <h2 className="text-xl font-semibold mb-2">Discover Places</h2>
+                <p className="text-muted-foreground mb-4">
+                  Find new spots to visit based on your interests and previous activities
+                </p>
+                <Button className="w-full" variant="outline">
+                  <span>Explore</span>
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                </Button>
+              </div>
+              
+              <div className="bg-white dark:bg-gray-800 rounded-lg border p-6 shadow-sm">
+                <div className="mb-4">
+                  <div className="h-12 w-12 rounded-full bg-scout-100 flex items-center justify-center">
+                    <Calendar className="h-6 w-6 text-scout-500" />
+                  </div>
+                </div>
+                <h2 className="text-xl font-semibold mb-2">Plan Your Day</h2>
+                <p className="text-muted-foreground mb-4">
+                  Get personalized itineraries that fit your schedule and preferences
+                </p>
+                <Button className="w-full" variant="outline">
+                  <span>Plan Now</span>
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                </Button>
+              </div>
             </div>
           )}
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-12">
-            <div className="bg-white dark:bg-gray-800 rounded-lg border p-6 shadow-sm">
-              <div className="mb-4">
-                <div className="h-12 w-12 rounded-full bg-scout-100 flex items-center justify-center">
-                  <MapPin className="h-6 w-6 text-scout-500" />
-                </div>
-              </div>
-              <h2 className="text-xl font-semibold mb-2">Discover Places</h2>
-              <p className="text-muted-foreground mb-4">
-                Find new spots to visit based on your interests and previous activities
-              </p>
-              <Button className="w-full" variant="outline">
-                <span>Explore</span>
-                <ArrowRight className="ml-2 h-4 w-4" />
-              </Button>
-            </div>
-            
-            <div className="bg-white dark:bg-gray-800 rounded-lg border p-6 shadow-sm">
-              <div className="mb-4">
-                <div className="h-12 w-12 rounded-full bg-scout-100 flex items-center justify-center">
-                  <Calendar className="h-6 w-6 text-scout-500" />
-                </div>
-              </div>
-              <h2 className="text-xl font-semibold mb-2">Plan Your Day</h2>
-              <p className="text-muted-foreground mb-4">
-                Get personalized itineraries that fit your schedule and preferences
-              </p>
-              <Button className="w-full" variant="outline">
-                <span>Plan Now</span>
-                <ArrowRight className="ml-2 h-4 w-4" />
-              </Button>
-            </div>
-          </div>
           
           <div className="bg-gradient-to-br from-scout-500/10 to-scout-400/5 rounded-2xl p-8 border border-scout-200">
             <div className="text-center mb-6">
@@ -538,16 +594,96 @@ const Index = () => {
               </p>
             </div>
             
-            <div className="relative">
-              <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
-                <Search className="h-5 w-5 text-muted-foreground" />
+            <form onSubmit={handleSearchSubmit} className="w-full mb-6">
+              <div className="relative flex">
+                <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                  <Search className="h-5 w-5 text-muted-foreground" />
+                </div>
+                <input
+                  type="text"
+                  className="bg-white dark:bg-gray-800 border border-input h-12 rounded-lg pl-10 pr-16 w-full focus:outline-none focus:ring-2 focus:ring-scout-500 focus:border-transparent"
+                  placeholder="Search for places or activities..."
+                  value={searchInput}
+                  onChange={(e) => setSearchInput(e.target.value)}
+                />
+                <button 
+                  type="submit" 
+                  className="absolute right-2 top-2 p-2 rounded-md text-scout-500 hover:bg-scout-50 dark:hover:bg-gray-700 transition-colors"
+                  disabled={!searchInput.trim() || isLoadingResponse}
+                >
+                  {isLoadingResponse ? (
+                    <Loader2 className="h-5 w-5 animate-spin" />
+                  ) : (
+                    <Send className="h-5 w-5" />
+                  )}
+                </button>
               </div>
-              <input
-                type="text"
-                className="bg-white dark:bg-gray-800 border border-input h-12 rounded-lg pl-10 pr-4 w-full focus:outline-none focus:ring-2 focus:ring-scout-500 focus:border-transparent"
-                placeholder="Search for places or activities..."
-              />
-            </div>
+            </form>
+            
+            {isChatting && hasExistingAnalysis && (
+              <div className="max-h-[400px] overflow-y-auto p-4 mb-4 bg-white dark:bg-gray-800 rounded-lg shadow-sm border">
+                {messages.map((message, index) => (
+                  <div 
+                    key={index} 
+                    className={`flex ${message.isUser ? 'justify-end' : 'justify-start'} mb-4`}
+                  >
+                    <div 
+                      className={`flex items-start space-x-2 max-w-[80%] ${
+                        message.isUser ? 'flex-row-reverse space-x-reverse' : 'flex-row'
+                      }`}
+                    >
+                      <div 
+                        className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${
+                          message.isUser ? 'bg-scout-500' : 'bg-gray-200 dark:bg-gray-700'
+                        }`}
+                      >
+                        {message.isUser ? (
+                          <User className="h-5 w-5 text-white" />
+                        ) : (
+                          <Bot className="h-5 w-5 text-scout-500 dark:text-scout-400" />
+                        )}
+                      </div>
+                      
+                      <div 
+                        className={`p-3 rounded-lg ${
+                          message.isUser 
+                            ? 'bg-scout-500 text-white' 
+                            : 'bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100 border dark:border-gray-700'
+                        }`}
+                      >
+                        <div className="whitespace-pre-wrap prose prose-sm max-w-none">
+                          {message.text.split('\n').map((text, i) => (
+                            <p key={i} className={`${i > 0 ? 'mt-2' : ''} ${message.isUser ? 'text-white' : 'text-gray-900 dark:text-gray-100'}`}>
+                              {text}
+                            </p>
+                          ))}
+                        </div>
+                        <div 
+                          className={`text-xs mt-1 ${
+                            message.isUser ? 'text-scout-100' : 'text-gray-500 dark:text-gray-400'
+                          }`}
+                        >
+                          {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+                {isLoadingResponse && (
+                  <div className="flex justify-start mb-4">
+                    <div className="flex items-start space-x-2">
+                      <div className="flex-shrink-0 w-8 h-8 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center">
+                        <Bot className="h-5 w-5 text-scout-500 dark:text-scout-400" />
+                      </div>
+                      <div className="p-3 rounded-lg bg-gray-100 dark:bg-gray-800 border dark:border-gray-700">
+                        <Loader2 className="h-5 w-5 animate-spin text-scout-500" />
+                      </div>
+                    </div>
+                  </div>
+                )}
+                <div ref={messagesEndRef} />
+              </div>
+            )}
           </div>
         </div>
       </main>

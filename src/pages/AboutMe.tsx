@@ -3,10 +3,11 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import Header from '@/components/layout/Header';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2 } from 'lucide-react';
+import { Loader2, ArrowLeft } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
+import { Button } from '@/components/ui/button';
 
 const AboutMe = () => {
   const { user, signOut } = useAuth();
@@ -114,14 +115,22 @@ const AboutMe = () => {
       
       <main className="flex-1 container mx-auto px-4 py-8">
         <div className="max-w-4xl mx-auto">
-          <div className="mb-8">
-            <h1 className="text-3xl font-bold mb-2">
+          <div className="mb-8 flex items-center">
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              onClick={() => navigate('/')}
+              className="mr-2"
+            >
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
+            <h1 className="text-3xl font-bold">
               About Me
             </h1>
-            <p className="text-lg text-muted-foreground">
-              A detailed analysis of your preferences and personality based on your activity data
-            </p>
           </div>
+          <p className="text-lg text-muted-foreground mb-6">
+            A detailed analysis of your preferences and personality based on your activity data
+          </p>
           
           {!personalityReport ? (
             <Card className="mb-8 bg-muted/30">
@@ -144,6 +153,16 @@ const AboutMe = () => {
               </CardContent>
             </Card>
           )}
+          
+          <div className="flex justify-center mb-8">
+            <Button 
+              onClick={() => navigate('/')}
+              className="bg-scout-500 hover:bg-scout-600"
+            >
+              <ArrowLeft className="mr-2 h-5 w-5" />
+              Back to Home
+            </Button>
+          </div>
         </div>
       </main>
     </div>

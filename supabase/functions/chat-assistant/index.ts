@@ -95,7 +95,8 @@ Guidelines:
 4. Be concise but helpful in your responses.
 5. If the user hasn't provided enough information for a personalized recommendation, ask follow-up questions about their preferences.
 6. Prefer giving specific recommendations over general advice.
-7. When recommending places, consider the user's documented interests from their profile.`;
+7. When recommending places, consider the user's documented interests from their profile.
+8. Format your responses clearly with paragraph breaks. Don't use markdown formatting.`;
 
     // Call OpenAI API
     const openAIResponse = await fetch("https://api.openai.com/v1/chat/completions", {
