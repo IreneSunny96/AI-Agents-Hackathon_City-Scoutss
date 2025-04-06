@@ -1,10 +1,10 @@
-
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { Session, User } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { useNavigate } from 'react-router-dom';
 import { Tables } from '@/integrations/supabase/types';
 import { ProfileUpdate } from '@/types/profiles';
+import { toast } from 'sonner';
 
 type Profile = Tables<'profiles'>;
 
@@ -37,6 +37,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
+        console.log('Auth state changed:', event, session ? 'session exists' : 'no session');
         setSession(session);
         setUser(session?.user ?? null);
 
@@ -51,6 +52,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     );
 
     supabase.auth.getSession().then(({ data: { session } }) => {
+      console.log('Initial session check:', session ? 'session exists' : 'no session');
       setSession(session);
       setUser(session?.user ?? null);
       
@@ -142,6 +144,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signOut = async () => {
     try {
+      console.log('Signing out, current session:', session ? 'exists' : 'none');
       const { error } = await supabase.auth.signOut();
       
       if (error) {
@@ -149,9 +152,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         throw error;
       }
       
+      setSession(null);
+      setUser(null);
+      setProfile(null);
+      
       navigate('/');
     } catch (error) {
       console.error('Error signing out:', error);
+      setSession(null);
+      setUser(null);
+      setProfile(null);
+      navigate('/');
       throw error;
     }
   };
@@ -219,15 +230,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }),
       });
 
+      const result = await response.json();
+      
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to delete account');
+        throw new Error(result.error || 'Failed to delete account');
       }
       
-      await signOut();
+      console.log('Account deletion successful, clearing session');
+      
+      setSession(null);
+      setUser(null);
+      setProfile(null);
+      
+      try {
+        await supabase.auth.signOut();
+      } catch (signOutError) {
+        console.log('Expected sign out error after account deletion:', signOutError);
+      }
+      
+      navigate('/');
+      toast.success('Your account has been successfully deleted');
       
     } catch (error) {
       console.error('Error deleting account:', error);
+      toast.error('Failed to delete account. Please try again.');
       throw error;
     }
   };

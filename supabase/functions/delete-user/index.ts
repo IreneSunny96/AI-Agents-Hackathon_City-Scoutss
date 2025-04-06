@@ -94,7 +94,11 @@ serve(async (req) => {
     }
 
     return new Response(
-      JSON.stringify({ message: "Account deleted successfully" }),
+      JSON.stringify({ 
+        message: "Account deleted successfully",
+        status: "success",
+        sessionInvalidated: true
+      }),
       {
         status: 200,
         headers: { ...corsHeaders, "Content-Type": "application/json" },

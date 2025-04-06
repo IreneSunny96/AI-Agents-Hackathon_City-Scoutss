@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { MapPin, LogOut, User } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -12,6 +11,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu';
+import { toast } from 'sonner';
 
 interface HeaderProps {
   transparent?: boolean;
@@ -19,7 +19,7 @@ interface HeaderProps {
 }
 
 const Header: React.FC<HeaderProps> = ({ transparent = false, onLogout }) => {
-  const { user, profile } = useAuth();
+  const { user, profile, signOut } = useAuth();
   
   const getInitials = (name: string) => {
     return name
@@ -27,6 +27,19 @@ const Header: React.FC<HeaderProps> = ({ transparent = false, onLogout }) => {
       .map(part => part[0])
       .join('')
       .toUpperCase();
+  };
+
+  const handleLogout = async () => {
+    try {
+      if (onLogout) {
+        await onLogout();
+      } else {
+        await signOut();
+      }
+      toast.success('Logged out successfully');
+    } catch (error) {
+      console.error('Error logging out:', error);
+    }
   };
 
   return (
@@ -57,7 +70,7 @@ const Header: React.FC<HeaderProps> = ({ transparent = false, onLogout }) => {
                 {profile?.full_name || user.email || "My Account"}
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={onLogout}>
+              <DropdownMenuItem onClick={handleLogout}>
                 <LogOut className="mr-2 h-4 w-4" />
                 <span>Log out</span>
               </DropdownMenuItem>
