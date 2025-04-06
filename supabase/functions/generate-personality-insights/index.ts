@@ -1,3 +1,4 @@
+
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -343,10 +344,11 @@ Your output should be in JSON format with the following structure:
     }
     
     // 8. Save insights to profiles table
+    // IMPORTANT CHANGE: Only save the personality_tiles but don't set has_personality_insights flag
+    // This will be set later after user confirms preferences
     const { error: updateProfileError } = await supabaseClient
       .from('profiles')
       .update({ 
-        has_personality_insights: true,
         personality_tiles: personalityTiles
       })
       .eq('id', userId);

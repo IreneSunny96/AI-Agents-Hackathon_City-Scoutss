@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import Header from '@/components/layout/Header';
@@ -43,23 +42,35 @@ const Profile = () => {
       try {
         setLoading(true);
         
-        // First get the tiles from the profile if available
-        if (profile?.personality_tiles) {
+        // First check if user has confirmed preferences
+        if (!profile?.preference_chosen) {
+          // If preferences haven't been chosen yet but personality_tiles exist, redirect to preferences
+          if (profile?.personality_tiles) {
+            navigate('/preferences');
+            return;
+          }
+        }
+        
+        // Get the tiles from the profile if available and preferences are chosen
+        if (profile?.personality_tiles && profile?.preference_chosen) {
           setPersonalityTiles(profile.personality_tiles as unknown as PersonalityTiles);
         }
         
-        // Try to get the report from storage
-        const userFolder = `user_data/${user.id}`;
-        const { data, error } = await supabase.storage
-          .from('user_files')
-          .download(`${userFolder}/personality_report.txt`);
-        
-        if (error) {
-          console.error('Error downloading personality report:', error);
-          // Not showing error to user as it's not critical
-        } else {
-          const reportText = await data.text();
-          setPersonalityReport(reportText);
+        // Only try to get the report if preferences have been chosen
+        if (profile?.preference_chosen) {
+          // Try to get the report from storage
+          const userFolder = `user_data/${user.id}`;
+          const { data, error } = await supabase.storage
+            .from('user_files')
+            .download(`${userFolder}/personality_report.txt`);
+          
+          if (error) {
+            console.error('Error downloading personality report:', error);
+            // Not showing error to user as it's not critical
+          } else {
+            const reportText = await data.text();
+            setPersonalityReport(reportText);
+          }
         }
       } catch (error) {
         console.error('Error fetching personality data:', error);
@@ -94,6 +105,59 @@ const Profile = () => {
           <div className="flex flex-col items-center">
             <Loader2 className="h-12 w-12 text-scout-500 animate-spin mb-4" />
             <p className="text-lg font-medium">Loading your profile...</p>
+          </div>
+        </main>
+      </div>
+    );
+  }
+  
+  // If preferences haven't been chosen, show a message about it
+  if (!profile?.preference_chosen) {
+    return (
+      <div className="min-h-screen flex flex-col bg-background">
+        <Header onLogout={handleLogout} />
+        
+        <main className="flex-1 container mx-auto px-4 py-8">
+          <div className="max-w-4xl mx-auto">
+            <div className="flex items-center mb-8">
+              <Button 
+                variant="outline" 
+                size="icon" 
+                className="mr-4"
+                onClick={handleGoBack}
+              >
+                <ArrowLeft className="h-4 w-4" />
+              </Button>
+              <div>
+                <h1 className="text-3xl font-bold mb-2">
+                  Your Personality Profile
+                </h1>
+                <p className="text-lg text-muted-foreground">
+                  You need to confirm your preferences before viewing your profile
+                </p>
+              </div>
+            </div>
+            
+            <Card className="mb-8 bg-muted/30">
+              <CardContent className="p-8 flex flex-col items-center justify-center">
+                <div className="w-16 h-16 bg-scout-100 rounded-full flex items-center justify-center mb-4">
+                  <User className="h-8 w-8 text-scout-500" />
+                </div>
+                <h2 className="text-xl font-semibold mb-2">Preferences Not Confirmed</h2>
+                <p className="text-muted-foreground text-center max-w-md mb-6">
+                  {profile?.personality_tiles ? 
+                    "You need to confirm your preferences before you can view your personality profile." :
+                    "You haven't generated personality insights yet. Go back to the home page and upload your activity data to get started."}
+                </p>
+                
+                <Button 
+                  onClick={() => profile?.personality_tiles ? navigate('/preferences') : navigate('/')}
+                  className="bg-scout-500 hover:bg-scout-600"
+                >
+                  {profile?.personality_tiles ? "Confirm Preferences" : "Get Started"}
+                </Button>
+              </CardContent>
+            </Card>
           </div>
         </main>
       </div>

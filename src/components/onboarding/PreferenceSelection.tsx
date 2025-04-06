@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -173,11 +174,12 @@ const PreferenceSelection = () => {
           updatedTiles[category] = selectedTiles[category];
         });
         
-        // Update profile in database and mark onboarding as completed
+        // Update profile in database and mark preference_chosen and has_personality_insights as true, and onboarding as completed
         await updateProfile({
           personality_tiles: updatedTiles,
-          onboarding_completed: true,
-          has_personality_insights: true
+          preference_chosen: true,
+          has_personality_insights: true,
+          onboarding_completed: true
         });
         
         toast.success('Your preferences have been saved!');

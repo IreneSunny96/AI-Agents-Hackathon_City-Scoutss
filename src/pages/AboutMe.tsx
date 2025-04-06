@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import Header from '@/components/layout/Header';
@@ -24,6 +25,24 @@ const AboutMe = () => {
     const fetchPersonalityReport = async () => {
       try {
         setLoading(true);
+        
+        // First check if the user has confirmed preferences
+        const { data: profile, error: profileError } = await supabase
+          .from('profiles')
+          .select('preference_chosen, has_personality_insights')
+          .eq('id', user.id)
+          .single();
+          
+        if (profileError) {
+          console.error('Error fetching profile:', profileError);
+          return;
+        }
+        
+        // If preferences haven't been confirmed, don't try to load the report
+        if (!profile.preference_chosen || !profile.has_personality_insights) {
+          setLoading(false);
+          return;
+        }
         
         const userFolder = `user_data/${user.id}`;
         const { data, error } = await supabase.storage
@@ -149,9 +168,17 @@ const AboutMe = () => {
             <Card className="mb-8 bg-muted/30">
               <CardContent className="p-8 flex flex-col items-center justify-center">
                 <h2 className="text-xl font-semibold mb-2">No Personality Report Available</h2>
-                <p className="text-muted-foreground text-center max-w-md">
-                  You haven't generated a personality report yet. Go to the home page and upload your activity data to get started.
+                <p className="text-muted-foreground text-center max-w-md mb-4">
+                  {!loading ? 
+                    "You haven't confirmed your preferences yet. Go to the preferences page to complete your profile." : 
+                    "You haven't generated a personality report yet. Go to the home page and upload your activity data to get started."}
                 </p>
+                <Button 
+                  onClick={() => navigate('/preferences')}
+                  className="bg-scout-500 hover:bg-scout-600"
+                >
+                  Complete Preferences
+                </Button>
               </CardContent>
             </Card>
           ) : (
