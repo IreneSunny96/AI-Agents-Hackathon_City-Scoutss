@@ -1,8 +1,6 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
-import { zodToJsonSchema } from "https://esm.sh/zod-to-json-schema@3.22.3";
 
 // Get environment variables
 const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY');
@@ -16,31 +14,77 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Define the schema for personality tiles
-const PersonalityTilesSchema = z.object({
-  'Lifestyle Vibes': z.array(z.string()),
-  'Lifestyle Vibes Reason': z.string(),
-  'Food & Drink Favorites': z.array(z.string()),
-  'Food & Drink Favorites Reason': z.string(),
-  'Go-to Activities': z.array(z.string()),
-  'Go-to Activities Reason': z.string(),
-  'Favorite Neighborhoods or Place Types': z.array(z.string()),
-  'Favorite Neighborhoods or Place Types Reason': z.string(),
-  'Travel & Exploration': z.array(z.string()),
-  'Travel & Exploration Reason': z.string(),
-  'Other': z.array(z.string()),
-  'Other Reason': z.string(),
-});
-
-// Define the schema for the entire response
-const PersonalityInsightsSchema = z.object({
-  personality_tiles: PersonalityTilesSchema
-});
-
-// Convert Zod schema to JSON schema for OpenAI
-const personalityTilesJsonSchema = zodToJsonSchema(PersonalityTilesSchema, {
-  $refStrategy: 'none',
-});
+// Define the JSON schema for personality tiles
+const personalityTilesSchema = {
+  "name": "personality_tiles",
+  "description": "JSON Response model for personality tiles schema.",
+  "strict": true,
+  "properties": { 
+    "Lifestyle Vibes": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "Lifestyle Vibes Reason": {
+      "type": "string",
+      "description": "A brief description of the lifestyle vibes selected above based on the user's data."
+    },
+    "Food & Drink Favorites": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "Food & Drink Favorites Reason": {
+      "type": "string",
+      "description": "A brief description of the food & drink favorites selected above based on the user's data."
+    },
+    "Go-to Activities": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "Go-to Activities Reason": {
+      "type": "string",
+      "description": "A brief description of the go-to activities selected above based on the user's data."
+    },
+    "Favorite Neighborhoods or Place Types": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "Favorite Neighborhoods or Place Types Reason": {
+      "type": "string",
+      "description": "A brief description of the favorite neighborhoods or place types selected above based on the user's data."
+    },
+    "Travel & Exploration": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "Travel & Exploration Reason": {
+      "type": "string",
+      "description": "A brief description of the travel & exploration selected above based on the user's data."
+    },
+    "Other": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "Other Reason": {
+      "type": "string",
+      "description": "A brief description of the others selected above based on the user's data."
+    }
+  },
+  "required": [
+    "Lifestyle Vibes",
+    "Lifestyle Vibes Reason",
+    "Food & Drink Favorites",
+    "Food & Drink Favorites Reason",
+    "Go-to Activities",
+    "Go-to Activities Reason",
+    "Favorite Neighborhoods or Place Types",
+    "Favorite Neighborhoods or Place Types Reason",
+    "Travel & Exploration",
+    "Travel & Exploration Reason",
+    "Other",
+    "Other Reason"
+  ],
+  "additionalProperties": false
+};
 
 // Main function to generate personality insights
 const generatePersonalityInsights = async (userId: string, supabaseClient: any) => {
@@ -319,7 +363,7 @@ For each tile:
         max_tokens: 2000,
         response_format: {
           type: 'json_object',
-          schema: personalityTilesJsonSchema
+          schema: personalityTilesSchema
         }
       }),
     });
@@ -333,13 +377,34 @@ For each tile:
     const personalityTilesData = await personalityTilesResponse.json();
     const personalityTilesJson = personalityTilesData.choices[0].message.content;
     
-    // Parse and save the personality tiles JSON
+    // Parse and validate the personality tiles JSON
     let personalityTiles;
     try {
       personalityTiles = JSON.parse(personalityTilesJson);
+      console.log('Successfully parsed personality tiles JSON');
       
-      // Validate the response against our schema
-      PersonalityTilesSchema.parse(personalityTiles);
+      // Basic validation
+      const requiredFields = [
+        'Lifestyle Vibes',
+        'Lifestyle Vibes Reason',
+        'Food & Drink Favorites',
+        'Food & Drink Favorites Reason',
+        'Go-to Activities',
+        'Go-to Activities Reason',
+        'Favorite Neighborhoods or Place Types',
+        'Favorite Neighborhoods or Place Types Reason',
+        'Travel & Exploration',
+        'Travel & Exploration Reason',
+        'Other',
+        'Other Reason'
+      ];
+      
+      for (const field of requiredFields) {
+        if (!personalityTiles[field]) {
+          throw new Error(`Missing required field: ${field}`);
+        }
+      }
+      
       console.log('Successfully validated personality tiles data against schema');
     } catch (parseError) {
       console.error('Error parsing or validating personality tiles JSON:', parseError);
@@ -431,4 +496,3 @@ serve(async (req) => {
     );
   }
 });
-
