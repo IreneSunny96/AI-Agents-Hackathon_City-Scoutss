@@ -23,7 +23,9 @@ const GoogleButton: React.FC<GoogleButtonProps> = ({
         provider: 'google',
         options: {
           redirectTo: redirectUrl,
-          scopes: 'https://www.googleapis.com/auth/drive.readonly'
+          // Don't request additional scopes that might be causing issues
+          // Remove the drive.readonly scope as it may not be needed for basic auth
+          scopes: 'email profile'
         }
       });
       

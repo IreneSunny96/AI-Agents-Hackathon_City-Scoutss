@@ -1,5 +1,4 @@
-
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { MapPin } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -12,6 +11,8 @@ import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { supabase } from '@/integrations/supabase/client';
+import { useNavigate } from 'react-router-dom';
 
 const loginSchema = z.object({
   email: z.string().email("Please enter a valid email address"),
@@ -29,6 +30,41 @@ const Auth = () => {
   const { signInWithGoogle, signInWithEmail, signUpWithEmail } = useAuth();
   const [loading, setLoading] = React.useState(false);
   const [activeTab, setActiveTab] = useState<string>("login");
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const checkSession = async () => {
+      try {
+        const { data, error } = await supabase.auth.getSession();
+        
+        if (error) {
+          console.error("Error checking session:", error);
+          return;
+        }
+        
+        if (data.session) {
+          console.log("User is already authenticated");
+          navigate('/');
+        }
+      } catch (err) {
+        console.error("Error in session check:", err);
+      }
+    };
+    
+    checkSession();
+    
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      console.log("Auth state changed:", event, session ? 'session exists' : 'no session');
+      
+      if (event === 'SIGNED_IN' && session) {
+        console.log("User signed in. Redirecting...");
+        setLoading(false);
+        navigate('/');
+      }
+    });
+    
+    return () => subscription.unsubscribe();
+  }, [navigate]);
 
   const loginForm = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
@@ -54,7 +90,6 @@ const Auth = () => {
     } catch (error) {
       console.error('Google sign in error:', error);
       toast.error('Failed to sign in with Google. Please try again.');
-    } finally {
       setLoading(false);
     }
   };
@@ -67,7 +102,6 @@ const Auth = () => {
     } catch (error: any) {
       console.error('Email sign in error:', error);
       toast.error(error.message || 'Failed to sign in. Please check your credentials and try again.');
-    } finally {
       setLoading(false);
     }
   };
@@ -78,10 +112,10 @@ const Auth = () => {
       await signUpWithEmail(values.email, values.password, { full_name: values.fullName });
       toast.success('Account created successfully. Please check your email for verification.');
       setActiveTab("login");
+      setLoading(false);
     } catch (error: any) {
       console.error('Email sign up error:', error);
       toast.error(error.message || 'Failed to create account. Please try again.');
-    } finally {
       setLoading(false);
     }
   };

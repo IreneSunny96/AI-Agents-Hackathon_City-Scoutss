@@ -14,17 +14,29 @@ interface ConnectProps {
 
 const Connect: React.FC<ConnectProps> = ({ onComplete }) => {
   const [loading, setLoading] = useState(false);
+  const [authenticated, setAuthenticated] = useState(false);
   const navigate = useNavigate();
 
   // Check for authentication state on component mount
   useEffect(() => {
     const checkSession = async () => {
-      const { data } = await supabase.auth.getSession();
-      if (data.session) {
-        console.log("User already authenticated:", data.session.user.id);
-        if (onComplete) {
-          onComplete();
+      try {
+        const { data, error } = await supabase.auth.getSession();
+        
+        if (error) {
+          console.error("Error checking session:", error);
+          return;
         }
+        
+        if (data.session) {
+          console.log("User already authenticated:", data.session.user.id);
+          setAuthenticated(true);
+          if (onComplete) {
+            onComplete();
+          }
+        }
+      } catch (err) {
+        console.error("Error in session check:", err);
       }
     };
     
@@ -35,9 +47,12 @@ const Connect: React.FC<ConnectProps> = ({ onComplete }) => {
       console.log("Auth state changed:", event, session ? 'session exists' : 'no session');
       if (event === 'SIGNED_IN' && session) {
         console.log("User signed in:", session.user.id);
+        setAuthenticated(true);
+        setLoading(false);
         if (onComplete) {
-          setLoading(false);
-          onComplete();
+          setTimeout(() => {
+            onComplete();
+          }, 500); // Small delay to ensure state updates are processed
         }
       }
     });
@@ -46,6 +61,13 @@ const Connect: React.FC<ConnectProps> = ({ onComplete }) => {
   }, [onComplete]);
 
   const handleConnectGoogle = async () => {
+    if (authenticated) {
+      if (onComplete) {
+        onComplete();
+      }
+      return;
+    }
+    
     setLoading(true);
     
     try {
@@ -65,9 +87,7 @@ const Connect: React.FC<ConnectProps> = ({ onComplete }) => {
       }
     } catch (error) {
       console.error("Error in demo setup:", error);
-    } finally {
-      // Don't call onComplete here, it will be called by the auth state change listener
-      // We also don't reset loading here, as we want to show the loading state until auth completes
+      setLoading(false);
     }
   };
 

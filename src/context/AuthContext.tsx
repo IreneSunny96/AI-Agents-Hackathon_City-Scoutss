@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { Session, User } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
@@ -35,34 +36,54 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const navigate = useNavigate();
 
   useEffect(() => {
+    // Set up auth state listener FIRST to avoid missing auth events
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
         console.log('Auth state changed:', event, session ? 'session exists' : 'no session');
-        setSession(session);
-        setUser(session?.user ?? null);
-
+        
         if (session?.user) {
+          setSession(session);
+          setUser(session.user);
+          
+          // Defer profile fetch to avoid potential deadlocks
           setTimeout(() => {
             fetchProfile(session.user.id);
           }, 0);
         } else {
+          setSession(null);
+          setUser(null);
           setProfile(null);
         }
       }
     );
 
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      console.log('Initial session check:', session ? 'session exists' : 'no session');
-      setSession(session);
-      setUser(session?.user ?? null);
-      
-      if (session?.user) {
-        fetchProfile(session.user.id);
+    // THEN check for existing session
+    const initializeAuth = async () => {
+      try {
+        const { data, error } = await supabase.auth.getSession();
+        
+        if (error) {
+          console.error('Error getting auth session:', error.message);
+          setLoading(false);
+          return;
+        }
+        
+        if (data.session?.user) {
+          console.log('Found existing session');
+          setSession(data.session);
+          setUser(data.session.user);
+          await fetchProfile(data.session.user.id);
+        }
+        
+        setLoading(false);
+      } catch (err) {
+        console.error('Error in auth initialization:', err);
+        setLoading(false);
       }
-      
-      setLoading(false);
-    });
-
+    };
+    
+    initializeAuth();
+    
     return () => subscription.unsubscribe();
   }, []);
 
@@ -87,11 +108,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signInWithGoogle = async () => {
     try {
+      // Get the current URL to use as the redirect URL
+      const redirectUrl = window.location.origin;
+      console.log("Using redirect URL for Google auth:", redirectUrl);
+      
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          scopes: 'https://www.googleapis.com/auth/drive.readonly',
-          redirectTo: window.location.origin
+          redirectTo: redirectUrl,
+          // Only request basic scopes needed for authentication
+          scopes: 'email profile'
         }
       });
 
