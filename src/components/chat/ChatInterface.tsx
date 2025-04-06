@@ -228,10 +228,21 @@ const ChatInterface: React.FC = () => {
     abortControllerRef.current = new AbortController();
     
     try {
+      // We need to remove the signal from the options since it's not supported
+      // in the FunctionInvokeOptions type
       const response = await supabase.functions.invoke('chat-assistant', {
-        body: { message: input, userId: user.id, stream: true },
-        signal: abortControllerRef.current.signal
+        body: { 
+          message: input, 
+          userId: user.id, 
+          stream: true 
+        }
       });
+      
+      // If the request is aborted during the invoke, we need to check
+      if (abortControllerRef.current?.signal.aborted) {
+        console.log('Request was aborted before response was received');
+        return;
+      }
       
       if (!response.data) {
         throw new Error('No response data from chat assistant');
@@ -243,6 +254,12 @@ const ChatInterface: React.FC = () => {
       let fullText = '';
       
       while (true) {
+        // Check if request was aborted
+        if (abortControllerRef.current?.signal.aborted) {
+          console.log('Request aborted during reading');
+          break;
+        }
+        
         const { done, value } = await reader.read();
         
         if (done) {
