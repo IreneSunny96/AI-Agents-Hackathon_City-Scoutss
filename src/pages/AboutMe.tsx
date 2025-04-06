@@ -29,6 +29,7 @@ const AboutMe = () => {
   const [hasPreferenceChosen, setHasPreferenceChosen] = useState(false);
   const [hasPersonalityInsights, setHasPersonalityInsights] = useState(false);
   const [debugInfo, setDebugInfo] = useState<string | null>(null);
+  const [bucketExists, setBucketExists] = useState(false);
   
   useEffect(() => {
     if (!user) {
@@ -39,6 +40,23 @@ const AboutMe = () => {
     const fetchPersonalityReport = async () => {
       try {
         setLoading(true);
+        
+        const { data: buckets, error: bucketsError } = await supabase
+          .storage
+          .listBuckets();
+          
+        if (bucketsError) {
+          console.error('Error listing buckets:', bucketsError);
+          setDebugInfo(prev => `${prev || ''}\nError listing buckets: ${bucketsError.message}`);
+        } else {
+          const userFilesBucket = buckets.find(b => b.name === 'user_files');
+          setBucketExists(!!userFilesBucket);
+          
+          if (!userFilesBucket) {
+            console.error('user_files bucket does not exist');
+            setDebugInfo(prev => `${prev || ''}\nuser_files bucket does not exist, available buckets: ${buckets.map(b => b.name).join(', ')}`);
+          }
+        }
         
         const { data: profile, error: profileError } = await supabase
           .from('profiles')
@@ -60,46 +78,47 @@ const AboutMe = () => {
         console.log('Attempting to download report from path:', filePath);
         setDebugInfo(`User ID: ${user.id}\nFile path: ${filePath}\nPreference chosen: ${profile.preference_chosen}\nHas insights: ${profile.has_personality_insights}`);
         
-        const { data, error } = await supabase.storage
-          .from('user_files')
-          .download(filePath);
-        
-        if (error) {
-          console.error('Error downloading personality report:', error);
-          
-          const { data: bucketData, error: bucketError } = await supabase.storage
-            .getBucket('user_files');
-            
-          if (bucketError) {
-            console.error('Error checking bucket:', bucketError);
-            setDebugInfo(prev => `${prev}\nBucket error: ${bucketError.message}`);
-          } else {
-            console.log('Bucket exists:', bucketData);
-            setDebugInfo(prev => `${prev}\nBucket exists: ${!!bucketData}\nBucket public: ${bucketData?.public || false}`);
-          }
-          
-          const { data: folderData, error: folderError } = await supabase.storage
+        if (bucketExists) {
+          const { data, error } = await supabase.storage
             .from('user_files')
-            .list(userFolder);
-            
-          if (folderError) {
-            console.error('Error listing folder:', folderError);
-            setDebugInfo(prev => `${prev}\nFolder error: ${folderError.message}`);
-          } else {
-            console.log('Files in folder:', folderData);
-            const fileList = folderData?.map(f => f.name).join(', ') || 'none';
-            setDebugInfo(prev => `${prev}\nFiles in folder: ${fileList}`);
-          }
+            .download(filePath);
           
-          if (!profile.preference_chosen || !profile.has_personality_insights) {
-            console.log('User profile flags indicate report should not exist yet');
+          if (error) {
+            console.error('Error downloading personality report:', error);
+            
+            const { data: folderData, error: folderError } = await supabase.storage
+              .from('user_files')
+              .list(userFolder);
+              
+            if (folderError) {
+              console.error('Error listing folder:', folderError);
+              setDebugInfo(prev => `${prev}\nFolder error: ${folderError.message}`);
+            } else {
+              console.log('Files in folder:', folderData);
+              const fileList = folderData?.map(f => f.name).join(', ') || 'none';
+              setDebugInfo(prev => `${prev}\nFiles in folder: ${fileList}`);
+              
+              const { data: rootData } = await supabase.storage
+                .from('user_files')
+                .list('');
+                
+              if (rootData && rootData.length > 0) {
+                setDebugInfo(prev => `${prev}\nRoot directory files: ${rootData.map(f => f.name).join(', ')}`);
+              }
+            }
+            
+            if (!profile.preference_chosen || !profile.has_personality_insights) {
+              console.log('User profile flags indicate report should not exist yet');
+            } else {
+              toast.error('Failed to load your personality report');
+            }
           } else {
-            toast.error('Failed to load your personality report');
+            const reportText = await data.text();
+            setPersonalityReport(reportText);
+            console.log('Personality report loaded successfully');
           }
         } else {
-          const reportText = await data.text();
-          setPersonalityReport(reportText);
-          console.log('Personality report loaded successfully');
+          setDebugInfo(prev => `${prev}\nSkipping file download because bucket doesn't exist`);
         }
       } catch (error) {
         console.error('Error fetching personality report:', error);
@@ -110,7 +129,7 @@ const AboutMe = () => {
     };
     
     fetchPersonalityReport();
-  }, [user, navigate]);
+  }, [user, navigate, bucketExists]);
   
   const handleLogout = async () => {
     try {
@@ -176,11 +195,49 @@ const AboutMe = () => {
     }
   };
   
-  const handleManualUpload = () => {
+  const handleManualUpload = async () => {
     if (!user) return;
     
-    toast.info('This would trigger generation of the personality report');
-    console.log('Would call generate-personality-insights for user:', user.id);
+    try {
+      setLoading(true);
+      const { data, error } = await supabase.functions.invoke('generate-personality-insights', {
+        body: { userId: user.id }
+      });
+      
+      if (error) {
+        console.error('Error generating personality insights:', error);
+        toast.error('Failed to generate personality report');
+        return;
+      }
+      
+      toast.success('Personality report generated successfully');
+      window.location.reload();
+    } catch (error) {
+      console.error('Error calling generate-personality-insights:', error);
+      toast.error('An error occurred while generating your personality report');
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  const createBucket = async () => {
+    try {
+      const { data, error } = await supabase.functions.invoke('create-storage-bucket', {
+        body: { name: 'user_files' }
+      });
+      
+      if (error) {
+        console.error('Error creating bucket:', error);
+        toast.error('Failed to create storage bucket');
+        return;
+      }
+      
+      toast.success('Storage bucket created successfully');
+      setBucketExists(true);
+    } catch (error) {
+      console.error('Error calling create-storage-bucket:', error);
+      toast.error('An error occurred while creating the storage bucket');
+    }
   };
   
   if (loading) {
@@ -254,6 +311,16 @@ const AboutMe = () => {
                     >
                       <FileText className="mr-2 h-4 w-4" />
                       Generate Personality Report Manually
+                    </Button>
+                  )}
+                  
+                  {!bucketExists && (
+                    <Button 
+                      onClick={createBucket}
+                      variant="secondary"
+                      className="w-full"
+                    >
+                      Create Storage Bucket
                     </Button>
                   )}
                 </div>
