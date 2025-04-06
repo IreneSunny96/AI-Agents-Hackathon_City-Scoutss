@@ -115,7 +115,19 @@ const Index = () => {
   const [isDataDeletionInProgress, setIsDataDeletionInProgress] = useState(false);
   const [showDeleteConfirmDialog, setShowDeleteConfirmDialog] = useState(false);
   const [openAiKeyError, setOpenAiKeyError] = useState(false);
-  
+  const [analysisSteps, setAnalysisSteps] = useState<{
+    text: string;
+    status: 'pending' | 'processing' | 'completed';
+  }[]>([
+    { text: 'Reading your activity data file', status: 'pending' },
+    { text: 'Parsing JSON data structure', status: 'pending' },
+    { text: 'Analyzing your search patterns', status: 'pending' },
+    { text: 'Processing location data', status: 'pending' },
+    { text: 'Identifying favorite places', status: 'pending' },
+    { text: 'Analyzing travel patterns', status: 'pending' },
+    { text: 'Finalizing your profile', status: 'pending' }
+  ]);
+  const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const [searchInput, setSearchInput] = useState('');
   const [isChatting, setIsChatting] = useState(false);
   const [messages, setMessages] = useState<Array<{text: string, isUser: boolean, timestamp: Date}>>([]);
@@ -225,6 +237,28 @@ const Index = () => {
     }
   };
 
+  const updateAnalysisStep = (progress: number) => {
+    const totalSteps = analysisSteps.length;
+    const stepPercentage = 100 / totalSteps;
+    const newStepIndex = Math.min(Math.floor(progress / stepPercentage), totalSteps - 1);
+    
+    if (newStepIndex !== currentStepIndex) {
+      setCurrentStepIndex(newStepIndex);
+      
+      setAnalysisSteps(prevSteps => 
+        prevSteps.map((step, idx) => {
+          if (idx < newStepIndex) {
+            return { ...step, status: 'completed' as const };
+          } else if (idx === newStepIndex) {
+            return { ...step, status: 'processing' as const };
+          } else {
+            return { ...step, status: 'pending' as const };
+          }
+        })
+      );
+    }
+  };
+
   const uploadAndProcessFile = async () => {
     if (!activityFile || !user) {
       toast.error('Please select a file first');
@@ -236,31 +270,51 @@ const Index = () => {
       setAnalysisComplete(false);
       setProcessingStage('Reading your activity data file...');
       setProcessingProgress(10);
+      updateAnalysisStep(10);
       
       const fileContent = await activityFile.text();
       let activityData;
       
       try {
         setProcessingStage('Parsing your activity data...');
-        setProcessingProgress(30);
+        setProcessingProgress(20);
+        updateAnalysisStep(20);
         
         activityData = JSON.parse(fileContent);
         console.log('Successfully parsed JSON data, length:', activityData.length);
+        setProcessingProgress(30);
+        updateAnalysisStep(30);
       } catch (parseError) {
         console.error('Error parsing JSON:', parseError);
         throw new Error('Failed to parse activity data. Is it a valid JSON file?');
       }
       
       setProcessingStage('Analyzing your activities...');
-      setProcessingProgress(60);
+      setProcessingProgress(40);
+      updateAnalysisStep(40);
+      
+      const progressInterval = setInterval(() => {
+        setProcessingProgress(prev => {
+          const newProgress = prev + 5;
+          if (newProgress <= 85) {
+            updateAnalysisStep(newProgress);
+            return newProgress;
+          }
+          clearInterval(progressInterval);
+          return prev;
+        });
+      }, 1500);
       
       console.log('Calling processPlacesData with user ID:', user.id);
       const result = await processPlacesData(user.id, activityData);
       console.log('Process result:', result);
       
+      clearInterval(progressInterval);
+      
       if (result && result.success) {
         setProcessingStage('Finalizing your profile...');
         setProcessingProgress(90);
+        updateAnalysisStep(90);
         
         await supabase
           .from('profiles')
@@ -268,6 +322,7 @@ const Index = () => {
           .eq('id', user.id);
           
         setProcessingProgress(100);
+        updateAnalysisStep(100);
         setProcessingStage('Analysis complete!');
         setAnalysisComplete(true);
       } else {
@@ -292,7 +347,16 @@ const Index = () => {
       setProcessingStage('Generating personality insights...');
       setProcessingProgress(20);
 
+      const insightProgressInterval = setInterval(() => {
+        setProcessingProgress(prev => {
+          const newProgress = Math.min(prev + 10, 90);
+          return newProgress;
+        });
+      }, 2000);
+
       const result = await generatePersonalityInsights(user.id);
+      
+      clearInterval(insightProgressInterval);
       
       if (result && result.success) {
         setProcessingProgress(100);
@@ -392,7 +456,7 @@ const Index = () => {
         <Header onLogout={handleLogout} />
         
         <main className="flex-1 flex items-center justify-center">
-          <div className="max-w-md w-full p-8 bg-white dark:bg-gray-800 rounded-lg shadow-lg">
+          <div className="max-w-lg w-full p-8 bg-white dark:bg-gray-800 rounded-lg shadow-lg">
             <div className="text-center mb-6">
               {analysisComplete ? (
                 <div className="flex flex-col items-center">
@@ -444,36 +508,42 @@ const Index = () => {
               <div className="space-y-6">
                 <Progress value={processingProgress} className="w-full h-2" />
                 
-                <div className="space-y-4">
-                  <div className="flex items-center space-x-4">
-                    <div className="w-12 h-12 rounded-full bg-scout-100 flex items-center justify-center">
-                      <MapPin className="h-6 w-6 text-scout-500" />
+                <div className="space-y-5">
+                  {analysisSteps.map((step, index) => (
+                    <div 
+                      key={index} 
+                      className={`flex items-center space-x-4 transition-opacity duration-300 ${
+                        step.status === 'pending' && index > currentStepIndex + 1 ? 'opacity-50' : 'opacity-100'
+                      }`}
+                    >
+                      <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 transition-colors duration-300 ${
+                        step.status === 'completed' 
+                          ? 'bg-green-100' 
+                          : step.status === 'processing'
+                            ? 'bg-scout-100' 
+                            : 'bg-gray-100'
+                      }`}>
+                        {step.status === 'completed' ? (
+                          <Check className="h-5 w-5 text-green-600" />
+                        ) : step.status === 'processing' ? (
+                          <Loader2 className="h-5 w-5 text-scout-500 animate-spin" />
+                        ) : (
+                          <div className="h-5 w-5 rounded-full border-2 border-gray-300"></div>
+                        )}
+                      </div>
+                      <div className="flex-1">
+                        <p className={`font-medium ${
+                          step.status === 'completed' 
+                            ? 'text-green-600' 
+                            : step.status === 'processing'
+                              ? 'text-scout-500' 
+                              : 'text-muted-foreground'
+                        }`}>
+                          {step.text}
+                        </p>
+                      </div>
                     </div>
-                    <div className="flex-1 space-y-2">
-                      <Skeleton className="h-4 w-3/4" />
-                      <Skeleton className="h-4 w-1/2" />
-                    </div>
-                  </div>
-                  
-                  <div className="flex items-center space-x-4">
-                    <div className="w-12 h-12 rounded-full bg-scout-100 flex items-center justify-center">
-                      <Search className="h-6 w-6 text-scout-500" />
-                    </div>
-                    <div className="flex-1 space-y-2">
-                      <Skeleton className="h-4 w-3/4" />
-                      <Skeleton className="h-4 w-1/2" />
-                    </div>
-                  </div>
-                  
-                  <div className="flex items-center space-x-4">
-                    <div className="w-12 h-12 rounded-full bg-scout-100 flex items-center justify-center">
-                      <Calendar className="h-6 w-6 text-scout-500" />
-                    </div>
-                    <div className="flex-1 space-y-2">
-                      <Skeleton className="h-4 w-3/4" />
-                      <Skeleton className="h-4 w-1/2" />
-                    </div>
-                  </div>
+                  ))}
                 </div>
               </div>
             )}
