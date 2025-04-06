@@ -1,3 +1,4 @@
+
 /**
  * Service for making API calls to your local FastAPI backend
  */
@@ -162,6 +163,8 @@ export const performAdvancedSearch = async (query: string) => {
         console.error('Error parsing auth token:', e);
       }
     }
+    
+    console.log('Sending advanced search query:', query);
     
     const response = await fetch(`https://${SUPABASE_PROJECT_ID}.supabase.co/functions/v1/advanced-search`, {
       method: 'POST',
