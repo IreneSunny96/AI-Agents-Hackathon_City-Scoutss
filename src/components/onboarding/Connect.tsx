@@ -45,14 +45,17 @@ const Connect: React.FC<ConnectProps> = ({ onComplete }) => {
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       console.log("Auth state changed:", event, session ? 'session exists' : 'no session');
+      
       if (event === 'SIGNED_IN' && session) {
         console.log("User signed in:", session.user.id);
         setAuthenticated(true);
         setLoading(false);
+        
+        // Use setTimeout to ensure state updates are processed before callback
         if (onComplete) {
           setTimeout(() => {
             onComplete();
-          }, 500); // Small delay to ensure state updates are processed
+          }, 500);
         }
       }
     });
@@ -69,26 +72,6 @@ const Connect: React.FC<ConnectProps> = ({ onComplete }) => {
     }
     
     setLoading(true);
-    
-    try {
-      // Reset any previous user data for demo purposes
-      const { error } = await supabase
-        .from('profiles')
-        .update({
-          onboarding_completed: false,
-          has_personality_insights: false,
-          preference_chosen: false,
-          personality_tiles: null
-        })
-        .eq('id', '95a5cc01-4480-4dbe-b05b-f02a7ae6788f');
-        
-      if (error) {
-        console.error("Error resetting profile data:", error);
-      }
-    } catch (error) {
-      console.error("Error in demo setup:", error);
-      setLoading(false);
-    }
   };
 
   const handleSkip = () => {

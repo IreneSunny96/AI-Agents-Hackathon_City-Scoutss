@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Button } from '../ui/button';
+import { Button } from './button';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
@@ -23,24 +23,22 @@ const GoogleButton: React.FC<GoogleButtonProps> = ({
         provider: 'google',
         options: {
           redirectTo: redirectUrl,
-          // Don't request additional scopes that might be causing issues
-          // Remove the drive.readonly scope as it may not be needed for basic auth
+          // Use only basic scopes needed for authentication
           scopes: 'email profile'
         }
       });
       
       if (error) {
         console.error("Google login error:", error);
-        toast.error("Google login failed");
+        toast.error("Google login failed: " + error.message);
         return;
       }
       
-      // The onClick will be called after successful redirect back from Google
-      // Note: this code won't execute immediately as the browser will redirect to Google
+      // The onClick handler will be called after successful redirect
       onClick();
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error in Google login:", error);
-      toast.error("Login failed");
+      toast.error("Login failed: " + (error.message || "Unknown error"));
     }
   };
 
