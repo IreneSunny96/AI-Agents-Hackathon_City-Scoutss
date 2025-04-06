@@ -257,11 +257,7 @@ Guidelines:
             content: message
           }
         ],
-        temperature: 0.7,
-        max_tokens: 1000,
-        top_p: 0.9,
-        frequency_penalty: 1,
-        presence_penalty: 0
+        
       })
     });
 
