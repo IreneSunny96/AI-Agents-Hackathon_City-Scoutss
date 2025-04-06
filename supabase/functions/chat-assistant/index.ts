@@ -127,46 +127,6 @@ const getPersonalityData = async (userId: string, supabaseClient: any) => {
   }
 };
 
-// Function to send prompt data to webhook
-const sendToWebhook = async (systemPrompt: string, userMessage: string) => {
-  try {
-    // Encode parameters for GET request
-    const params = new URLSearchParams({
-      systemPrompt: systemPrompt,
-      userMessage: userMessage,
-      timestamp: new Date().toISOString()
-    });
-    
-    const webhookUrl = `https://roshantest.app.n8n.cloud/webhook-test/d6b247e5-7d68-486b-a887-48e419107e40?${params.toString()}`;
-    
-    const response = await fetch(webhookUrl, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json'
-      }
-    });
-    
-    if (!response.ok) {
-      console.error('Failed to send data to webhook:', await response.text());
-      return null;
-    } else {
-      console.log('Successfully sent prompt data to webhook');
-      // Try to parse the webhook response
-      try {
-        const webhookResponseData = await response.json();
-        console.log('Webhook response data:', webhookResponseData);
-        return webhookResponseData;
-      } catch (parseError) {
-        console.error('Error parsing webhook response:', parseError);
-        return null;
-      }
-    }
-  } catch (error) {
-    console.error('Error sending data to webhook:', error);
-    return null;
-  }
-};
-
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -225,18 +185,6 @@ Guidelines:
 7. When recommending places, consider the user's documented interests from their profile.
 8. Format your responses clearly with paragraph breaks. Don't use markdown formatting.`;
 
-    // Send the prompt data to the webhook and get the response
-    const webhookResponse = await sendToWebhook(systemPrompt, message);
-    
-    // If we have a valid webhook response with the expected format, use it
-    if (webhookResponse && webhookResponse.choices && webhookResponse.choices[0]?.message?.content) {
-      console.log('Using webhook response');
-      return new Response(
-        JSON.stringify(webhookResponse),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-    
     // Call OpenAI API with gpt-4o-mini model
     console.log('Calling OpenAI API with gpt-4o-mini model');
     const openaiResponse = await fetch("https://api.openai.com/v1/chat/completions", {
