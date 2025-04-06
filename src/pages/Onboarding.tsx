@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
@@ -11,7 +12,8 @@ import { Loader2, Upload } from 'lucide-react';
 import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import GoogleButton from '@/components/ui/GoogleButton';
 import { Progress } from '@/components/ui/progress';
-import { processUserOnboarding, processPlacesData } from '@/services/apiService';
+import { processUserOnboarding, processPlacesData, generatePersonalityInsights } from '@/services/apiService';
+import PreferenceSelection from '@/components/onboarding/PreferenceSelection';
 
 const Onboarding = () => {
   const { user, profile, updateProfile } = useAuth();
@@ -27,6 +29,8 @@ const Onboarding = () => {
   const [showPlacesDialog, setShowPlacesDialog] = useState(false);
   const [placesDataFile, setPlacesDataFile] = useState<File | null>(null);
   const [isProcessingPlaces, setIsProcessingPlaces] = useState(false);
+  const [showPreferenceSelection, setShowPreferenceSelection] = useState(false);
+  const [insightsGenerated, setInsightsGenerated] = useState(false);
   
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -118,35 +122,88 @@ const Onboarding = () => {
     try {
       // Read the file contents
       const fileContent = await placesDataFile.text();
-      const activityData = JSON.parse(fileContent);
-
-      setProcessingStage('Processing your places data...');
-      setProcessingProgress(30);
-
-      // Process the data using the Edge Function
-      const result = await processPlacesData(user.id, activityData);
+      let activityData;
       
-      setProcessingStage('Analyzing places preferences...');
-      setProcessingProgress(70);
-
-      // Simulate additional processing time
-      setTimeout(() => {
+      try {
+        setProcessingStage('Parsing your activity data...');
+        setProcessingProgress(30);
+        
+        activityData = JSON.parse(fileContent);
+        console.log('Successfully parsed JSON data, length:', activityData.length);
+      } catch (parseError) {
+        console.error('Error parsing JSON:', parseError);
+        throw new Error('Failed to parse activity data. Is it a valid JSON file?');
+      }
+      
+      setProcessingStage('Analyzing your activities...');
+      setProcessingProgress(60);
+      
+      console.log('Calling processPlacesData with user ID:', user.id);
+      const result = await processPlacesData(user.id, activityData);
+      console.log('Process result:', result);
+      
+      if (result && result.success) {
+        setProcessingStage('Finalizing your profile...');
+        setProcessingProgress(90);
+        
+        await updateProfile({
+          onboarding_completed: true
+        });
+          
         setProcessingProgress(100);
         setProcessingStage('Analysis complete!');
-        
-        setTimeout(() => {
-          setIsProcessingPlaces(false);
-          toast.success('Your places data has been successfully analyzed!');
-          setShowPlacesDialog(false);
-        }, 1000);
-      }, 2000);
-
+        setIsProcessingPlaces(false);
+        setShowPlacesDialog(false);
+        setInsightsGenerated(false); // Reset in case they're re-uploading
+      } else {
+        throw new Error('Failed to process places data');
+      }
     } catch (error) {
-      console.error('Error processing places data:', error);
-      toast.error('Failed to process your places data. Please try again.');
+      console.error('Error processing activity file:', error);
+      toast.error(error instanceof Error ? error.message : 'There was an error processing your data. Please try again.');
       setIsProcessingPlaces(false);
     }
   };
+
+  const handleGenerateInsights = async () => {
+    if (!user) {
+      toast.error('You need to be logged in to generate insights');
+      return;
+    }
+
+    try {
+      setProcessingStage('Generating personality insights...');
+      setProcessingProgress(20);
+
+      const result = await generatePersonalityInsights(user.id);
+      
+      if (result && result.success) {
+        setProcessingProgress(100);
+        setProcessingStage('Insights generated successfully!');
+        
+        setTimeout(() => {
+          toast.success('Your personality profile has been created!');
+          setInsightsGenerated(true);
+          setShowPreferenceSelection(true);
+        }, 1500);
+      } else {
+        throw new Error('Failed to generate personality insights');
+      }
+    } catch (error) {
+      console.error('Error generating insights:', error);
+      
+      if (error instanceof Error && error.message.includes('OpenAI API key is missing')) {
+        toast.error('Missing OpenAI API key. Please contact the administrator.');
+      } else {
+        toast.error(error instanceof Error ? error.message : 'There was an error generating your insights. Please try again.');
+      }
+    }
+  };
+
+  // If we're showing the preference selection screen
+  if (showPreferenceSelection && insightsGenerated) {
+    return <PreferenceSelection />;
+  }
 
   // If we're in the profile setup complete state, show the loading screen
   if (isProfileSetupComplete) {
@@ -172,6 +229,35 @@ const Onboarding = () => {
             </div>
           </CardContent>
         </Card>
+      </div>
+    );
+  }
+
+  // Show insights generation UI if analyzed but insights not yet generated
+  if (isProcessingPlaces === false && processingProgress === 100 && !insightsGenerated) {
+    return (
+      <div className="min-h-screen flex flex-col bg-background">
+        <main className="flex-1 flex items-center justify-center">
+          <div className="max-w-md w-full p-8 bg-white dark:bg-gray-800 rounded-lg shadow-lg">
+            <div className="text-center mb-6">
+              <div className="flex flex-col items-center">
+                <div className="h-16 w-16 rounded-full bg-green-100 flex items-center justify-center mb-4">
+                  <Check className="h-8 w-8 text-green-600" />
+                </div>
+                <h2 className="text-2xl font-bold mb-2">Analysis Complete!</h2>
+                <p className="text-muted-foreground mb-6">Your activity data has been successfully analyzed.</p>
+                
+                <Button 
+                  className="bg-scout-500 hover:bg-scout-600 w-full"
+                  size="lg"
+                  onClick={handleGenerateInsights}
+                >
+                  Let's get your preferences!
+                </Button>
+              </div>
+            </div>
+          </div>
+        </main>
       </div>
     );
   }
@@ -280,7 +366,7 @@ const Onboarding = () => {
                 {isProcessingPlaces ? (
                   <div className="space-y-4 py-4">
                     <p className="text-center">{processingStage}</p>
-                    <Progress value={processingProgress} className="w-full" />
+                    <Progress value={processingProgress} className="w-full h-2" />
                   </div>
                 ) : (
                   <div className="space-y-4 py-4">

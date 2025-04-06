@@ -10,6 +10,7 @@ import Auth from "./pages/Auth";
 import Onboarding from "./pages/Onboarding";
 import Profile from "./pages/Profile";
 import NotFound from "./pages/NotFound";
+import PreferenceSelection from "./components/onboarding/PreferenceSelection";
 
 const queryClient = new QueryClient();
 
@@ -90,6 +91,14 @@ const AppRoutes = () => {
         element={
           <ProtectedRoute>
             <Profile />
+          </ProtectedRoute>
+        } 
+      />
+      <Route 
+        path="/preferences" 
+        element={
+          <ProtectedRoute>
+            <PreferenceSelection />
           </ProtectedRoute>
         } 
       />
