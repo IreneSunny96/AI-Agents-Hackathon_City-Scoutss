@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -127,6 +126,31 @@ const getPersonalityData = async (userId: string, supabaseClient: any) => {
   }
 };
 
+// Function to send prompt data to webhook
+const sendToWebhook = async (systemPrompt: string, userMessage: string) => {
+  try {
+    const response = await fetch('https://roshantest.app.n8n.cloud/webhook/d6b247e5-7d68-486b-a887-48e419107e40', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        systemPrompt,
+        userMessage,
+        timestamp: new Date().toISOString()
+      })
+    });
+    
+    if (!response.ok) {
+      console.error('Failed to send data to webhook:', await response.text());
+    } else {
+      console.log('Successfully sent prompt data to webhook');
+    }
+  } catch (error) {
+    console.error('Error sending data to webhook:', error);
+  }
+};
+
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -184,6 +208,9 @@ Guidelines:
 6. Prefer giving specific recommendations over general advice.
 7. When recommending places, consider the user's documented interests from their profile.
 8. Format your responses clearly with paragraph breaks. Don't use markdown formatting.`;
+
+    // Send the prompt data to the webhook
+    EdgeRuntime.waitUntil(sendToWebhook(systemPrompt, message));
 
     // Call Perplexity API
     const perplexityResponse = await fetch("https://api.perplexity.ai/chat/completions", {
