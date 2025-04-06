@@ -93,7 +93,7 @@ const PreferenceSelection = () => {
         
         if (profile && profile.personality_tiles) {
           // Fix: Properly type and cast the personality_tiles
-          const tilesData = profile.personality_tiles as PersonalityTiles;
+          const tilesData = profile.personality_tiles as unknown as PersonalityTiles;
           setPersonalityTiles(tilesData);
           
           // Initialize selection state with all items selected
@@ -107,12 +107,12 @@ const PreferenceSelection = () => {
           setSelectedTiles(initialSelections);
         } else {
           toast.error('No personality data found. Please generate insights first.');
-          navigate('/');
+          navigate('/onboarding');
         }
       } catch (error) {
         console.error('Error fetching personality tiles:', error);
         toast.error('Failed to load personality data');
-        navigate('/');
+        navigate('/onboarding');
       } finally {
         setLoading(false);
       }
@@ -212,7 +212,7 @@ const PreferenceSelection = () => {
   const currentStepData = steps[currentStep];
   const currentField = currentStepData.field;
   const currentTiles = personalityTiles ? personalityTiles[currentField] : [];
-  const selectedTilesForCurrentStep = selectedTiles[currentField] || [];
+  const selectedTilesForCurrentStep = selectedTiles[currentField as string] || [];
 
   return (
     <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4">

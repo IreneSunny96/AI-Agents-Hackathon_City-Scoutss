@@ -90,16 +90,20 @@ const AppRoutes = () => {
         path="/profile" 
         element={
           <ProtectedRoute>
-            <Profile />
+            {profile?.onboarding_completed ? <Profile /> : <Navigate to="/onboarding" replace />}
           </ProtectedRoute>
         } 
       />
       <Route 
         path="/preferences" 
         element={
-          <ProtectedRoute>
-            <PreferenceSelection />
-          </ProtectedRoute>
+          !user
+            ? <Navigate to="/auth" replace />
+            : profile?.onboarding_completed
+              ? <Navigate to="/" replace />
+              : profile?.has_personality_insights
+                ? <PreferenceSelection />
+                : <Navigate to="/onboarding" replace />
         } 
       />
       <Route path="*" element={<NotFound />} />

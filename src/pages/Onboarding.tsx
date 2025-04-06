@@ -12,7 +12,6 @@ import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, Dialog
 import GoogleButton from '@/components/ui/GoogleButton';
 import { Progress } from '@/components/ui/progress';
 import { processUserOnboarding, processPlacesData, generatePersonalityInsights } from '@/services/apiService';
-import PreferenceSelection from '@/components/onboarding/PreferenceSelection';
 
 const Onboarding = () => {
   const { user, profile, updateProfile } = useAuth();
@@ -177,7 +176,7 @@ const Onboarding = () => {
         setTimeout(() => {
           toast.success('Your personality profile has been created!');
           setInsightsGenerated(true);
-          setShowPreferenceSelection(true);
+          navigate('/preferences');
         }, 1500);
       } else {
         throw new Error('Failed to generate personality insights');
@@ -194,7 +193,8 @@ const Onboarding = () => {
   };
 
   if (showPreferenceSelection && insightsGenerated) {
-    return <PreferenceSelection />;
+    navigate('/preferences');
+    return null;
   }
 
   if (isProfileSetupComplete) {
