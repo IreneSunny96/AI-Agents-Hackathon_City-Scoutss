@@ -1,73 +1,131 @@
-# Welcome to your Lovable project
 
-## Project info
+# CityScout Compass
 
-**URL**: https://lovable.dev/projects/7ac7960b-9f41-418b-bfd1-66fe91505e97
+A personalized city exploration assistant that helps you discover places aligned with your preferences and personality.
 
-## How can I edit this code?
+## Overview
 
-There are several ways of editing your application.
+CityScout Compass analyzes your preferences and location history to provide tailored recommendations for places to visit, eat, and explore. The application creates a personalized profile based on your preferences and uses this information to suggest destinations that match your lifestyle and interests.
 
-**Use Lovable**
+## Features
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/7ac7960b-9f41-418b-bfd1-66fe91505e97) and start prompting.
+- **User Authentication**: Secure login and registration with email/password or Google OAuth
+- **Personalized Onboarding**: Multi-step preference selection to understand your interests
+- **Place Discovery**: Find places that match your preferences and personality
+- **Personality Insights**: AI-generated insights based on your activity data
+- **Interactive Map**: Explore recommended locations visually
+- **Profile Management**: Update your preferences and personal information
 
-Changes made via Lovable will be committed automatically to this repo.
+## Tech Stack
 
-**Use your preferred IDE**
+### Frontend
+- **React**: UI library for building the user interface
+- **TypeScript**: Type-safe JavaScript for better development experience
+- **Vite**: Fast, modern frontend build tool
+- **Tailwind CSS**: Utility-first CSS framework for styling
+- **shadcn/ui**: High-quality UI components built with Radix UI and Tailwind
+- **React Router**: Client-side routing
+- **Tanstack Query**: Data fetching and state management
+- **Mapbox GL**: Interactive maps and location visualization
+- **lucide-react**: Icon library
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+### Backend
+- **Supabase**: Backend-as-a-Service platform providing:
+  - Authentication
+  - PostgreSQL Database
+  - Storage
+  - Edge Functions
+- **OpenAI**: AI capabilities for personality insights and recommendations
+- **Google Drive API**: Integration for importing location data
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+## Getting Started
 
-Follow these steps:
+### Prerequisites
+- Node.js & npm - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+- Supabase account (for backend functionality)
+- Google API credentials (for Google Drive integration)
+- Mapbox API key (for map functionality)
+- OpenAI API key (for AI features)
 
+### Development Setup
+
+1. Clone the repository
 ```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+git clone <repository-url>
+cd city-scout-compass
+```
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+2. Install dependencies
+```sh
+npm install
+```
 
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
+3. Start the development server
+```sh
 npm run dev
 ```
 
-**Edit a file directly in GitHub**
+4. Open your browser and navigate to `http://localhost:5173`
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+### Backend Setup
 
-**Use GitHub Codespaces**
+The project uses Supabase for backend functionality. For local development with the complete backend:
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+1. Set up the FastAPI backend (optional, for enhanced data processing)
+   - Follow the instructions in `src/docs/FastAPISetup.md`
 
-## What technologies are used for this project?
+2. Configure your environment variables by creating a `.env` file with:
+```
+VITE_SUPABASE_URL=your_supabase_url
+VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
+VITE_MAPBOX_ACCESS_TOKEN=your_mapbox_token
+```
 
-This project is built with:
+## Deployment
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+The application can be deployed directly from Lovable by clicking the "Publish" button.
 
-## How can I deploy this project?
+### Custom Domain
 
-Simply open [Lovable](https://lovable.dev/projects/7ac7960b-9f41-418b-bfd1-66fe91505e97) and click on Share -> Publish.
+To connect your own domain:
+1. Navigate to Project > Settings > Domains in Lovable
+2. Click "Connect Domain" and follow the instructions
 
-## Can I connect a custom domain to my Lovable project?
+## Project Structure
 
-Yes it is!
+```
+/src
+  /components       # UI components
+    /ui             # Base UI components from shadcn
+    /layout         # Layout components
+    /onboarding     # Onboarding flow components
+    /map            # Map-related components
+  /context          # React context providers
+  /hooks            # Custom React hooks
+  /integrations     # Third-party integrations
+  /lib              # Utility functions
+  /pages            # Page components
+  /services         # API service functions
+  /types            # TypeScript type definitions
+  /utils            # Utility functions
+/supabase
+  /functions        # Supabase Edge Functions
+```
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+## Contributing
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-tricks/custom-domain#step-by-step-guide)
+1. Create a branch for your feature
+2. Make your changes
+3. Submit a pull request
+
+## Resources
+
+- [Supabase Documentation](https://supabase.com/docs)
+- [React Documentation](https://react.dev)
+- [Tailwind CSS Documentation](https://tailwindcss.com/docs)
+- [shadcn/ui Documentation](https://ui.shadcn.com)
+- [Mapbox GL JS Documentation](https://docs.mapbox.com/mapbox-gl-js)
+
+## License
+
+This project is licensed under the MIT License.
