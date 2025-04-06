@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import Header from '@/components/layout/Header';
@@ -44,7 +43,6 @@ const Profile = () => {
       try {
         setLoading(true);
         
-        // Fetch the complete profile including preference_chosen
         const { data: profileData, error: profileError } = await supabase
           .from('profiles')
           .select('*')
@@ -58,11 +56,8 @@ const Profile = () => {
         
         setExtendedProfile(profileData as ExtendedProfile);
         
-        // First check if user has confirmed preferences
         if (!profileData.preference_chosen) {
-          // If preferences haven't been chosen yet but personality_tiles exist, redirect to preferences
           if (profileData.personality_tiles) {
-            // Add a toast to inform the user
             toast({
               title: "Complete Your Preferences",
               description: "Please complete your preference selection before viewing your profile."
@@ -72,14 +67,11 @@ const Profile = () => {
           }
         }
         
-        // Get the tiles from the profile if available and preferences are chosen
         if (profileData.personality_tiles && profileData.preference_chosen) {
           setPersonalityTiles(profileData.personality_tiles as unknown as PersonalityTiles);
         }
         
-        // Only try to get the report if preferences have been chosen
         if (profileData.preference_chosen) {
-          // Try to get the report from storage
           const userFolder = `user_data/${user.id}`;
           const { data, error } = await supabase.storage
             .from('user_files')
@@ -87,7 +79,6 @@ const Profile = () => {
           
           if (error) {
             console.error('Error downloading personality report:', error);
-            // Not showing error to user as it's not critical
           } else {
             const reportText = await data.text();
             setPersonalityReport(reportText);
@@ -106,10 +97,17 @@ const Profile = () => {
   const handleLogout = async () => {
     try {
       await signOut();
-      toast.success('Logged out successfully');
+      toast({
+        title: "Success",
+        description: "Logged out successfully"
+      });
     } catch (error) {
       console.error('Error logging out:', error);
-      toast.error('Failed to log out. Please try again.');
+      toast({
+        title: "Error",
+        description: "Failed to log out. Please try again.",
+        variant: "destructive"
+      });
     }
   };
 
@@ -329,7 +327,6 @@ const Profile = () => {
                 </Card>
               </div>
               
-              {/* More personality tiles */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-12">
                 <Card>
                   <CardHeader>
@@ -395,7 +392,6 @@ const Profile = () => {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                {/* Use a pre tag to preserve formatting from the report */}
                 <div className="prose prose-sm max-w-none">
                   <pre className="whitespace-pre-wrap font-sans">{personalityReport}</pre>
                 </div>
