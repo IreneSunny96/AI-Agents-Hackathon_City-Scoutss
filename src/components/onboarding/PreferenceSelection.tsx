@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -99,12 +100,20 @@ const PreferenceSelection = () => {
           
           setSelectedTiles(initialSelections);
         } else {
-          toast.error('No personality data found. Please generate insights first.');
+          toast({
+            title: "No Data Found",
+            description: "No personality data found. Please generate insights first.",
+            variant: "destructive"
+          });
           navigate('/onboarding');
         }
       } catch (error) {
         console.error('Error fetching personality tiles:', error);
-        toast.error('Failed to load personality data');
+        toast({
+          title: "Error",
+          description: "Failed to load personality data",
+          variant: "destructive"
+        });
         navigate('/onboarding');
       } finally {
         setLoading(false);

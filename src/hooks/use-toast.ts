@@ -138,7 +138,7 @@ function dispatch(action: Action) {
 
 type Toast = Omit<ToasterToast, "id">
 
-function toast({ ...props }: Toast) {
+function toast(props: Toast) {
   const id = genId()
 
   const update = (props: ToasterToast) =>
@@ -166,6 +166,23 @@ function toast({ ...props }: Toast) {
     update,
   }
 }
+
+// Convenience methods for different toast variants
+toast.error = function(props: Omit<Toast, "variant">) {
+  return toast({ ...props, variant: "destructive" });
+};
+
+toast.success = function(props: Omit<Toast, "variant">) {
+  return toast({ ...props });
+};
+
+toast.info = function(props: Omit<Toast, "variant">) {
+  return toast({ ...props });
+};
+
+toast.warning = function(props: Omit<Toast, "variant">) {
+  return toast({ ...props, variant: "destructive" });
+};
 
 function useToast() {
   const [state, setState] = React.useState<State>(memoryState)
