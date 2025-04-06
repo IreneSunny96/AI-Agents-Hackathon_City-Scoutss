@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -8,12 +7,87 @@ import { useAuth } from '@/context/AuthContext';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { useNavigate } from 'react-router-dom';
+import { cn } from '@/lib/utils';
 
 interface Message {
   text: string;
   isUser: boolean;
   timestamp: Date;
 }
+
+const formatMarkdown = (text: string) => {
+  const lines = text.split('\n');
+  const result: React.ReactNode[] = [];
+  let inList = false;
+  let listItems: string[] = [];
+  let key = 0;
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const trimmedLine = line.trim();
+    
+    if (trimmedLine === '') {
+      if (inList) {
+        result.push(
+          <ul key={key++} className="list-disc pl-6 space-y-1 mb-2">
+            {listItems.map((item, index) => (
+              <li key={index}>{item}</li>
+            ))}
+          </ul>
+        );
+        inList = false;
+        listItems = [];
+      }
+      result.push(<br key={key++} />);
+      continue;
+    }
+
+    if (trimmedLine.startsWith('# ')) {
+      result.push(<h1 key={key++} className="text-lg font-bold mt-2 mb-1">{trimmedLine.slice(2)}</h1>);
+    } else if (trimmedLine.startsWith('## ')) {
+      result.push(<h2 key={key++} className="text-base font-semibold mt-2 mb-1">{trimmedLine.slice(3)}</h2>);
+    } else if (trimmedLine.startsWith('### ')) {
+      result.push(<h3 key={key++} className="text-sm font-semibold mt-1 mb-1">{trimmedLine.slice(4)}</h3>);
+    } 
+    else if (trimmedLine.match(/\*\*.*\*\*/)) {
+      const content = trimmedLine.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+      result.push(<p key={key++} className="mb-1" dangerouslySetInnerHTML={{ __html: content }} />);
+    }
+    else if (trimmedLine.startsWith('- ')) {
+      if (!inList) {
+        inList = true;
+        listItems = [];
+      }
+      listItems.push(trimmedLine.slice(2));
+    }
+    else {
+      if (inList) {
+        result.push(
+          <ul key={key++} className="list-disc pl-6 space-y-1 mb-2">
+            {listItems.map((item, index) => (
+              <li key={index}>{item}</li>
+            ))}
+          </ul>
+        );
+        inList = false;
+        listItems = [];
+      }
+      result.push(<p key={key++} className="mb-1">{trimmedLine}</p>);
+    }
+  }
+
+  if (inList && listItems.length > 0) {
+    result.push(
+      <ul key={key++} className="list-disc pl-6 space-y-1 mb-2">
+        {listItems.map((item, index) => (
+          <li key={index}>{item}</li>
+        ))}
+      </ul>
+    );
+  }
+
+  return result;
+};
 
 const ChatInterface: React.FC = () => {
   const [input, setInput] = useState('');
@@ -23,7 +97,6 @@ const ChatInterface: React.FC = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
 
-  // Add welcome message when component mounts
   useEffect(() => {
     if (messages.length === 0) {
       setMessages([
@@ -36,7 +109,6 @@ const ChatInterface: React.FC = () => {
     }
   }, []);
 
-  // Auto-scroll to bottom of messages
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
@@ -48,7 +120,6 @@ const ChatInterface: React.FC = () => {
       return;
     }
 
-    // Add user message to chat
     const userMessage = {
       text: input,
       isUser: true,
@@ -60,7 +131,6 @@ const ChatInterface: React.FC = () => {
     setIsLoading(true);
     
     try {
-      // Get the token from local storage
       const token = localStorage.getItem('sb-zgdrcbdrmnhvfzygyecx-auth-token');
       let authToken = '';
       
@@ -73,7 +143,6 @@ const ChatInterface: React.FC = () => {
         }
       }
       
-      // Call the Supabase Edge Function
       const { data, error } = await supabase.functions.invoke('chat-assistant', {
         body: { message: input, userId: user.id }
       });
@@ -82,7 +151,6 @@ const ChatInterface: React.FC = () => {
         throw new Error(`Error calling chat assistant: ${error.message}`);
       }
       
-      // Add assistant response to chat
       setMessages((prev) => [
         ...prev,
         {
@@ -95,7 +163,6 @@ const ChatInterface: React.FC = () => {
       console.error('Error sending message:', error);
       toast.error('Failed to get a response. Please try again.');
       
-      // Add error message to chat
       setMessages((prev) => [
         ...prev,
         {
@@ -161,7 +228,14 @@ const ChatInterface: React.FC = () => {
                       : 'bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100'
                   }`}
                 >
-                  <div className="whitespace-pre-wrap">{message.text}</div>
+                  {message.isUser ? (
+                    <div className="whitespace-pre-wrap">{message.text}</div>
+                  ) : (
+                    <div className={cn("prose prose-sm max-w-none", 
+                      message.isUser ? "prose-invert" : "")}>
+                      {formatMarkdown(message.text)}
+                    </div>
+                  )}
                   <div 
                     className={`text-xs mt-1 ${
                       message.isUser ? 'text-scout-100' : 'text-gray-500 dark:text-gray-400'
