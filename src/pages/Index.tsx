@@ -225,7 +225,7 @@ const Index = () => {
         
         setTimeout(() => {
           toast.success('Your personality profile has been created!');
-          navigate('/profile');
+          navigate('/preferences');
         }, 1500);
       } else {
         throw new Error('Failed to generate personality insights');

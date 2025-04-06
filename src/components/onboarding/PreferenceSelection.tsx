@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -122,6 +121,32 @@ const PreferenceSelection = () => {
 
     fetchPersonalityTiles();
   }, [user, navigate]);
+
+  useEffect(() => {
+    if (!loading && personalityTiles) {
+      const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+        e.preventDefault();
+        e.returnValue = '';
+      };
+
+      const handlePopState = (e: PopStateEvent) => {
+        e.preventDefault();
+        toast({
+          title: "Complete Your Preferences",
+          description: "Please complete your preference selection process.",
+          variant: "default"
+        });
+      };
+
+      window.addEventListener('beforeunload', handleBeforeUnload);
+      window.addEventListener('popstate', handlePopState);
+
+      return () => {
+        window.removeEventListener('beforeunload', handleBeforeUnload);
+        window.removeEventListener('popstate', handlePopState);
+      };
+    }
+  }, [loading, personalityTiles]);
 
   const handleTileToggle = (category: string, tile: string) => {
     setSelectedTiles(prev => {

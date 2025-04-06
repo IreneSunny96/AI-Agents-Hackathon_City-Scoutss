@@ -61,6 +61,12 @@ const Profile = () => {
         if (!profileData.preference_chosen) {
           // If preferences haven't been chosen yet but personality_tiles exist, redirect to preferences
           if (profileData.personality_tiles) {
+            // Add a toast to inform the user
+            toast({
+              title: "Complete Your Preferences",
+              description: "Please complete your preference selection before viewing your profile.",
+              variant: "default"
+            });
             navigate('/preferences');
             return;
           }
