@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import Header from '@/components/layout/Header';
 import { Button } from '@/components/ui/button';
@@ -610,11 +609,11 @@ const Index = () => {
           <div className="mb-8 text-center">
             <h1 className="text-3xl font-bold mb-2">
               {profile?.full_name 
-                ? `Welcome Back ${profile.full_name.split(' ')[0]}! Here is your City Scout`
+                ? <>Welcome Back <span className="text-scout-500">{profile.full_name.split(' ')[0]}</span>! Here is your City Scout</>
                 : 'Welcome to CityScout'}
             </h1>
             <p className="text-lg text-muted-foreground">
-              AI companion that knows you, what you'd love to do right now.
+              AI companion that knows you, and what you'd love to do.
             </p>
             
             <div className="mt-4 flex justify-center">
