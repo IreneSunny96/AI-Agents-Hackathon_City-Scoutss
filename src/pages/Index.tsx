@@ -6,7 +6,7 @@ import { useAuth } from '@/context/AuthContext';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
-import { processPlacesData, generatePersonalityInsights } from '@/services/apiService';
+import { processPlacesData, generatePersonalityInsights, performAdvancedSearch } from '@/services/apiService';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Progress } from '@/components/ui/progress';
 import { Input } from '@/components/ui/input';
@@ -422,18 +422,12 @@ const Index = () => {
       if (isAdvancedSearch) {
         setIsAdvancedSearchLoading(true);
         
-        const { data, error } = await supabase.functions.invoke('advanced-search', {
-          body: { query: userMessage.text }
-        });
-        
-        if (error) {
-          throw new Error(`Error calling advanced search: ${error.message}`);
-        }
+        const result = await performAdvancedSearch(userMessage.text);
         
         setMessages(prevMessages => [
           ...prevMessages,
           {
-            text: data.result || "I couldn't find any relevant information. Please try again.",
+            text: result.result || "I couldn't find any relevant information. Please try again.",
             isUser: false,
             timestamp: new Date()
           }
