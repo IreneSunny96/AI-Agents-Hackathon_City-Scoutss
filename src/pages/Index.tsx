@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -67,7 +68,6 @@ const Index = () => {
 
   function onSubmit(values: z.infer<typeof profileFormSchema>) {
     toast({
-      title: "You submitted the following values:",
       description: (
         <pre className="mt-2 w-[340px] rounded-md bg-slate-950 p-4">
           <code className="text-white">{JSON.stringify(values, null, 2)}</code>
@@ -87,7 +87,7 @@ const Index = () => {
     }
   }, [user]);
 
-  const handleSearch = () => {
+  const handleSearch = async () => {
     if (!searchQuery.trim()) {
       toast.error('Please enter a search query');
       return;
@@ -97,8 +97,8 @@ const Index = () => {
       try {
         setIsSearching(true);
         setAdvancedSearchResult(null);
-        const { result } = await performAdvancedSearch(searchQuery);
-        setAdvancedSearchResult(result);
+        const result = await performAdvancedSearch(searchQuery);
+        setAdvancedSearchResult(result.result);
       } catch (error) {
         console.error('Advanced search error:', error);
         toast.error('Advanced search failed: ' + (error as Error).message);
