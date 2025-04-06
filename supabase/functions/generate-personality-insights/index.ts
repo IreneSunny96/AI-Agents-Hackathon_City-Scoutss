@@ -266,7 +266,7 @@ ${personalityReport}
 
 Create distinct profile tiles:
  
-Each tile should be at least 5 items, catchy phrase that encapsulates the user's interests or preferences.
+Each tile should be at least 10 items, catchy phrases that encapsulates the user's interests or preferences.
 Each tile SHOULD be ultra specific to the user and should be based on the data provided.
 The tiles should be categorized into the following sections:
 The Tiles are used for user onboarding, so they should be very elegant and catchy.
@@ -314,17 +314,17 @@ For each tile:
 
 Your output should be in JSON format with the following structure:
 {
-  "Lifestyle Vibes": ["descriptor1", "descriptor2", ...],
+  "Lifestyle Vibes": ["descriptor1", "descriptor2", .."descriptor6".],
   "Lifestyle Vibes Reason": "You have these lifestyle vibes based on your search and visit patterns. You frequently...",
-  "Food & Drink Favorites": ["descriptor1", "descriptor2", ...],
+  "Food & Drink Favorites": ["descriptor1", "descriptor2", ..."descriptor6"],
   "Food & Drink Favorites Reason": "Your food preferences show you enjoy these cuisines. You frequently search for...",
-  "Go-to Activities": ["descriptor1", "descriptor2", ...],
+  "Go-to Activities": ["descriptor1", "descriptor2", .."descriptor6".],
   "Go-to Activities Reason": "You often engage in these activities based on your search patterns. You regularly...",
-  "Favorite Neighborhoods or Place Types": ["descriptor1", "descriptor2", ...],
+  "Favorite Neighborhoods or Place Types": ["descriptor1", "descriptor2", ..."descriptor6"],
   "Favorite Neighborhoods or Place Types Reason": "You frequently visit or search for these types of places. You seem to enjoy...",
-  "Travel & Exploration": ["descriptor1", "descriptor2", ...],
+  "Travel & Exploration": ["descriptor1", "descriptor2", ..."descriptor6""],
   "Travel & Exploration Reason": "Your travel preferences indicate you enjoy these types of destinations. You search for...",
-  "Other": ["descriptor1", "descriptor2", ...],
+  "Other": ["descriptor1", "descriptor2", ..."descriptor6""],
   "Other Reason": "These additional interests are reflected in your search patterns. You demonstrate interest in..."
 }
 `;
