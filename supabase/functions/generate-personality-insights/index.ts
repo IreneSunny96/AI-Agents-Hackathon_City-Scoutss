@@ -16,6 +16,7 @@ const corsHeaders = {
 
 // Define the JSON schema for personality tiles
 const personalityTilesSchema = {
+  "type": "object", // Adding the missing "type": "object" property
   "name": "personality_tiles",
   "description": "JSON Response model for personality tiles schema.",
   "strict": true,
