@@ -2,6 +2,7 @@
 import React from 'react';
 import { Button } from '../ui/button';
 import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 
 interface GoogleButtonProps {
   onClick: () => void;
@@ -39,6 +40,7 @@ const GoogleButton: React.FC<GoogleButtonProps> = ({
           
           if (signUpError) {
             console.error("Error creating demo account:", signUpError);
+            toast.error("Could not create demo account");
           } else {
             // Try signing in again after account creation
             await supabase.auth.signInWithPassword({
@@ -46,6 +48,8 @@ const GoogleButton: React.FC<GoogleButtonProps> = ({
               password: "demo-password-123"
             });
           }
+        } else {
+          toast.error("Demo login failed");
         }
       } else {
         console.log("Demo login successful");
@@ -55,6 +59,7 @@ const GoogleButton: React.FC<GoogleButtonProps> = ({
       onClick();
     } catch (error) {
       console.error("Error in demo login:", error);
+      toast.error("Login failed");
     }
   };
 
