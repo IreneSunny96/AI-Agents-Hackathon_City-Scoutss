@@ -23,7 +23,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Card, CardContent } from '@/components/ui/card';
-import { User, Bot, Send } from 'lucide-react';
+import { User, Bot, Send, Sparkles } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const formatMarkdown = (text: string) => {
@@ -133,7 +133,9 @@ const Index = () => {
   const [messages, setMessages] = useState<Array<{text: string, isUser: boolean, timestamp: Date}>>([]);
   const [isLoadingResponse, setIsLoadingResponse] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  
+  const [isAdvancedSearch, setIsAdvancedSearch] = useState(false);
+  const [isAdvancedSearchLoading, setIsAdvancedSearchLoading] = useState(false);
+
   useEffect(() => {
     if (user) {
       checkExistingAnalysis();
@@ -417,22 +419,43 @@ const Index = () => {
     setSearchInput('');
     
     try {
-      const { data, error } = await supabase.functions.invoke('chat-assistant', {
-        body: { message: userMessage.text, userId: user.id }
-      });
-      
-      if (error) {
-        throw new Error(`Error calling chat assistant: ${error.message}`);
-      }
-      
-      setMessages(prevMessages => [
-        ...prevMessages,
-        {
-          text: data.reply,
-          isUser: false,
-          timestamp: new Date()
+      if (isAdvancedSearch) {
+        setIsAdvancedSearchLoading(true);
+        
+        const { data, error } = await supabase.functions.invoke('advanced-search', {
+          body: { query: userMessage.text }
+        });
+        
+        if (error) {
+          throw new Error(`Error calling advanced search: ${error.message}`);
         }
-      ]);
+        
+        setMessages(prevMessages => [
+          ...prevMessages,
+          {
+            text: data.result || "I couldn't find any relevant information. Please try again.",
+            isUser: false,
+            timestamp: new Date()
+          }
+        ]);
+      } else {
+        const { data, error } = await supabase.functions.invoke('chat-assistant', {
+          body: { message: userMessage.text, userId: user.id }
+        });
+        
+        if (error) {
+          throw new Error(`Error calling chat assistant: ${error.message}`);
+        }
+        
+        setMessages(prevMessages => [
+          ...prevMessages,
+          {
+            text: data.reply,
+            isUser: false,
+            timestamp: new Date()
+          }
+        ]);
+      }
     } catch (error) {
       console.error('Error sending message:', error);
       toast.error('Failed to get a response. Please try again.');
@@ -447,6 +470,16 @@ const Index = () => {
       ]);
     } finally {
       setIsLoadingResponse(false);
+      setIsAdvancedSearchLoading(false);
+    }
+  };
+
+  const toggleAdvancedSearch = () => {
+    setIsAdvancedSearch(!isAdvancedSearch);
+    if (!isAdvancedSearch) {
+      toast.info("Advanced search activated with web search capabilities");
+    } else {
+      toast.info("Switched to standard search");
     }
   };
 
@@ -739,7 +772,7 @@ const Index = () => {
               </p>
             </div>
             
-            <form onSubmit={handleSearchSubmit} className="w-full mb-6">
+            <form onSubmit={handleSearchSubmit} className="w-full mb-2">
               <div className="relative flex">
                 <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
                   <Search className="h-5 w-5 text-muted-foreground" />
@@ -747,7 +780,7 @@ const Index = () => {
                 <input
                   type="text"
                   className="bg-white dark:bg-gray-800 border border-input h-12 rounded-lg pl-10 pr-16 w-full focus:outline-none focus:ring-2 focus:ring-scout-500 focus:border-transparent"
-                  placeholder="Search for places or activities..."
+                  placeholder={isAdvancedSearch ? "Ask anything with web search capabilities..." : "Search for places or activities..."}
                   value={searchInput}
                   onChange={(e) => setSearchInput(e.target.value)}
                 />
@@ -764,6 +797,21 @@ const Index = () => {
                 </button>
               </div>
             </form>
+            
+            <div className="flex justify-center mb-6">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={toggleAdvancedSearch}
+                className={cn(
+                  "flex items-center gap-2",
+                  isAdvancedSearch ? "bg-scout-100 text-scout-700 border-scout-200" : ""
+                )}
+              >
+                <Sparkles className="h-4 w-4" />
+                {isAdvancedSearch ? "Advanced Search Active" : "Activate Advanced Search"}
+              </Button>
+            </div>
             
             {isChatting && hasExistingAnalysis && (
               <div className="max-h-[400px] overflow-y-auto p-4 mb-4 bg-white dark:bg-gray-800 rounded-lg shadow-sm border">
@@ -822,7 +870,14 @@ const Index = () => {
                         <Bot className="h-5 w-5 text-scout-500 dark:text-scout-400" />
                       </div>
                       <div className="p-3 rounded-lg bg-gray-100 dark:bg-gray-800 border dark:border-gray-700">
-                        <Loader2 className="h-5 w-5 animate-spin text-scout-500" />
+                        {isAdvancedSearchLoading ? (
+                          <div className="flex items-center space-x-2">
+                            <Loader2 className="h-5 w-5 animate-spin text-scout-500" />
+                            <span className="text-sm text-muted-foreground">Searching the web for answers...</span>
+                          </div>
+                        ) : (
+                          <Loader2 className="h-5 w-5 animate-spin text-scout-500" />
+                        )}
                       </div>
                     </div>
                   </div>
