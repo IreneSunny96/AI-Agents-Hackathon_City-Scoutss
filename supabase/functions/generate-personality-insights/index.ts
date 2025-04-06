@@ -319,15 +319,15 @@ For each tile:
 
 Your output should be in JSON format with the following structure:
 {
-  "Lifestyle Vibes": ["descriptor1", "descriptor2", .."descriptor6".],
+  "Lifestyle Vibes": ["descriptor1", "descriptor2", .."descriptor5".],
   "Lifestyle Vibes Reason": "You have these lifestyle vibes based on your search and visit patterns. You frequently...",
   "Food & Drink Favorites": ["descriptor1", "descriptor2", ..."descriptor6"],
   "Food & Drink Favorites Reason": "Your food preferences show you enjoy these cuisines. You frequently search for...",
-  "Go-to Activities": ["descriptor1", "descriptor2", .."descriptor6".],
+  "Go-to Activities": ["descriptor1", "descriptor2", .."descriptor7".],
   "Go-to Activities Reason": "You often engage in these activities based on your search patterns. You regularly...",
-  "Favorite Neighborhoods or Place Types": ["descriptor1", "descriptor2", ..."descriptor6"],
+  "Favorite Neighborhoods or Place Types": ["descriptor1", "descriptor2", ..."descriptor5"],
   "Favorite Neighborhoods or Place Types Reason": "You frequently visit or search for these types of places. You seem to enjoy...",
-  "Travel & Exploration": ["descriptor1", "descriptor2", ..."descriptor6""],
+  "Travel & Exploration": ["descriptor1", "descriptor2", ..."descriptor5""],
   "Travel & Exploration Reason": "Your travel preferences indicate you enjoy these types of destinations. You search for...",
   "Other": ["descriptor1", "descriptor2", ..."descriptor6""],
   "Other Reason": "These additional interests are reflected in your search patterns. You demonstrate interest in..."
