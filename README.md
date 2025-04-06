@@ -44,8 +44,10 @@ CityScout Compass analyzes your preferences and location history to provide tail
 - Node.js & npm - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
 - Supabase account (for backend functionality)
 - Google API credentials (for Google Drive integration)
+- Google Places API
 - Mapbox API key (for map functionality)
 - OpenAI API key (for AI features)
+- Mistral API
 
 ### Development Setup
 
