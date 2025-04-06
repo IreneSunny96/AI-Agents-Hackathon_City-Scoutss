@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect } from 'react';
 import Header from '@/components/layout/Header';
 import { Button } from '@/components/ui/button';
@@ -613,7 +614,7 @@ const Index = () => {
                 : 'Welcome to CityScout'}
             </h1>
             <p className="text-lg text-muted-foreground">
-              AI companion that knows who you are, where you are, and what you'd love to do right now.
+              AI companion that knows you, what you'd love to do right now.
             </p>
             
             <div className="mt-4 flex justify-center">
