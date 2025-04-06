@@ -5,7 +5,7 @@ import Map from '@/components/map/Map';
 import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { toast } from 'sonner';
 
 const DiscoverPlaces = () => {
@@ -22,6 +22,10 @@ const DiscoverPlaces = () => {
     }
   };
 
+  const handleBackClick = () => {
+    navigate('/');
+  };
+
   return (
     <div className="min-h-screen flex flex-col bg-background">
       <Header onLogout={handleLogout} />
@@ -33,7 +37,7 @@ const DiscoverPlaces = () => {
               <Button 
                 variant="ghost" 
                 size="icon"
-                onClick={() => navigate(-1)}
+                onClick={handleBackClick}
               >
                 <ArrowLeft className="h-5 w-5" />
               </Button>
