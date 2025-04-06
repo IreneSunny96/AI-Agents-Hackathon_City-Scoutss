@@ -318,7 +318,7 @@ For each tile:
         temperature: 0.7,
         max_tokens: 2000,
         response_format: {
-          type: 'json_schema',
+          type: 'json_object',
           schema: personalityTilesJsonSchema
         }
       }),
@@ -431,3 +431,4 @@ serve(async (req) => {
     );
   }
 });
+
