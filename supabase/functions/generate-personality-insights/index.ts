@@ -202,18 +202,43 @@ Remember to maintain an objective tone and avoid speculative statements unless c
       throw new Error(`Failed to save personality report to storage: ${saveReportError.message}`);
     }
     
-    // Save the personality report to the database
-    const { error: saveReportToDbError } = await supabaseClient
+    // Save the personality report to the database - Modified this part
+    // First, check if a record already exists
+    const { data: existingReport, error: checkError } = await supabaseClient
       .from('user_data')
-      .upsert({
-        user_id: userId,
-        data_type: 'personality_report',
-        content: personalityReport,
-        updated_at: new Date().toISOString()
-      }, {
-        onConflict: 'user_id,data_type',
-        ignoreDuplicates: false
-      });
+      .select('id')
+      .eq('user_id', userId)
+      .eq('data_type', 'personality_report')
+      .limit(1);
+      
+    let saveReportToDbError;
+    
+    if (checkError) {
+      console.error('Error checking for existing report:', checkError);
+    } else if (existingReport && existingReport.length > 0) {
+      // Update existing record
+      const { error } = await supabaseClient
+        .from('user_data')
+        .update({
+          content: personalityReport,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', existingReport[0].id);
+        
+      saveReportToDbError = error;
+    } else {
+      // Insert new record
+      const { error } = await supabaseClient
+        .from('user_data')
+        .insert({
+          user_id: userId,
+          data_type: 'personality_report',
+          content: personalityReport,
+          updated_at: new Date().toISOString()
+        });
+        
+      saveReportToDbError = error;
+    }
     
     if (saveReportToDbError) {
       console.error('Error saving personality report to database:', saveReportToDbError);
@@ -363,18 +388,43 @@ Your output should be in JSON format with the following structure:
       throw new Error(`Failed to save personality tiles to storage: ${saveTilesError.message}`);
     }
     
-    // Save the personality tiles to the database
-    const { error: saveTilesToDbError } = await supabaseClient
+    // Save the personality tiles to the database - Modified this part
+    // First, check if a record already exists
+    const { data: existingTiles, error: checkTilesError } = await supabaseClient
       .from('user_data')
-      .upsert({
-        user_id: userId,
-        data_type: 'personality_tiles',
-        content: JSON.stringify(personalityTiles),
-        updated_at: new Date().toISOString()
-      }, {
-        onConflict: 'user_id,data_type',
-        ignoreDuplicates: false
-      });
+      .select('id')
+      .eq('user_id', userId)
+      .eq('data_type', 'personality_tiles')
+      .limit(1);
+      
+    let saveTilesToDbError;
+    
+    if (checkTilesError) {
+      console.error('Error checking for existing tiles:', checkTilesError);
+    } else if (existingTiles && existingTiles.length > 0) {
+      // Update existing record
+      const { error } = await supabaseClient
+        .from('user_data')
+        .update({
+          content: JSON.stringify(personalityTiles),
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', existingTiles[0].id);
+        
+      saveTilesToDbError = error;
+    } else {
+      // Insert new record
+      const { error } = await supabaseClient
+        .from('user_data')
+        .insert({
+          user_id: userId,
+          data_type: 'personality_tiles',
+          content: JSON.stringify(personalityTiles),
+          updated_at: new Date().toISOString()
+        });
+        
+      saveTilesToDbError = error;
+    }
     
     if (saveTilesToDbError) {
       console.error('Error saving personality tiles to database:', saveTilesToDbError);

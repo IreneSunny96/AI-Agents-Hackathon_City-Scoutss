@@ -1,17 +1,15 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
-import { toast } from 'sonner';
+import { toast } from '@/components/ui/use-toast';
 import { Loader2, ArrowRight, ArrowLeft, Check } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { ProfileUpdate } from '@/types/profiles';
 
-// Define the structure of personality tiles data
 interface PersonalityTiles {
   'Lifestyle Vibes': string[];
   'Food & Drink Favorites': string[];
@@ -22,7 +20,6 @@ interface PersonalityTiles {
   [key: string]: string[];
 }
 
-// Define step interface
 interface StepData {
   title: string;
   description: string;
@@ -37,7 +34,6 @@ const PreferenceSelection = () => {
   const [selectedTiles, setSelectedTiles] = useState<Record<string, string[]>>({});
   const [currentStep, setCurrentStep] = useState(0);
 
-  // Define the steps in the wizard
   const steps: StepData[] = [
     {
       title: 'Lifestyle Vibes',
@@ -71,11 +67,9 @@ const PreferenceSelection = () => {
     }
   ];
 
-  // Calculate progress percentage
   const progressPercentage = ((currentStep + 1) / steps.length) * 100;
 
   useEffect(() => {
-    // Fetch personality tiles data on component mount
     const fetchPersonalityTiles = async () => {
       if (!user) return;
 
@@ -93,11 +87,9 @@ const PreferenceSelection = () => {
         }
         
         if (profile && profile.personality_tiles) {
-          // Fix: Properly type and cast the personality_tiles
           const tilesData = profile.personality_tiles as unknown as PersonalityTiles;
           setPersonalityTiles(tilesData);
           
-          // Initialize selection state with all items selected
           const initialSelections: Record<string, string[]> = {};
           Object.keys(tilesData).forEach(key => {
             if (Array.isArray(tilesData[key]) && !key.includes('Reason')) {
@@ -122,19 +114,16 @@ const PreferenceSelection = () => {
     fetchPersonalityTiles();
   }, [user, navigate]);
 
-  // Handle tile selection/deselection
   const handleTileToggle = (category: string, tile: string) => {
     setSelectedTiles(prev => {
       const currentTiles = prev[category] || [];
       
       if (currentTiles.includes(tile)) {
-        // Remove tile if already selected
         return {
           ...prev,
           [category]: currentTiles.filter(t => t !== tile)
         };
       } else {
-        // Add tile if not selected
         return {
           ...prev,
           [category]: [...currentTiles, tile]
@@ -143,7 +132,6 @@ const PreferenceSelection = () => {
     });
   };
 
-  // Handle next step button click
   const handleNext = () => {
     if (currentStep < steps.length - 1) {
       setCurrentStep(prev => prev + 1);
@@ -152,30 +140,25 @@ const PreferenceSelection = () => {
     }
   };
 
-  // Handle previous step button click
   const handlePrevious = () => {
     if (currentStep > 0) {
       setCurrentStep(prev => prev - 1);
     }
   };
 
-  // Handle completion of the wizard
   const handleComplete = async () => {
     if (!user) return;
     
     try {
       setLoading(true);
       
-      // Update the profile with selected tiles
       if (personalityTiles) {
         const updatedTiles = { ...personalityTiles };
         
-        // Update each category with selected tiles
         Object.keys(selectedTiles).forEach(category => {
           updatedTiles[category] = selectedTiles[category];
         });
         
-        // Update profile in database with proper type
         const profileUpdate: ProfileUpdate = {
           personality_tiles: updatedTiles,
           preference_chosen: true,
@@ -185,13 +168,19 @@ const PreferenceSelection = () => {
         
         await updateProfile(profileUpdate);
         
-        toast.success('Your preferences have been saved!');
-        // Redirect to home page after completing preferences
+        toast({
+          title: "Success",
+          description: "Your preferences have been saved!",
+        });
         navigate('/');
       }
     } catch (error) {
       console.error('Error saving preferences:', error);
-      toast.error('Failed to save your preferences');
+      toast({
+        title: "Error",
+        description: "Failed to save your preferences",
+        variant: "destructive",
+      });
     } finally {
       setLoading(false);
     }
@@ -212,7 +201,6 @@ const PreferenceSelection = () => {
     );
   }
 
-  // Current step data
   const currentStepData = steps[currentStep];
   const currentField = currentStepData.field;
   const currentTiles = personalityTiles ? personalityTiles[currentField] : [];
