@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -205,7 +204,6 @@ Guidelines:
             content: message
           }
         ],
-        
       })
     });
 
@@ -216,6 +214,9 @@ Guidelines:
     }
 
     const responseData = await openaiResponse.json();
+    
+    // Log the response
+    console.log("OpenAI API response:", JSON.stringify(responseData));
     
     return new Response(
       JSON.stringify(responseData),

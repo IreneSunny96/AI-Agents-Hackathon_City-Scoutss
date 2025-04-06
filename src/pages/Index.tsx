@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import Header from '@/components/layout/Header';
 import { Button } from '@/components/ui/button';
@@ -444,10 +443,21 @@ const Index = () => {
           throw new Error(`Error calling chat assistant: ${error.message}`);
         }
         
+        console.log('Chat response from Edge Function:', data);
+        
+        let responseText = '';
+        if (data.choices && data.choices[0]?.message?.content) {
+          responseText = data.choices[0].message.content;
+        } else if (data.reply) {
+          responseText = data.reply;
+        } else {
+          throw new Error('Unexpected response format from chat assistant');
+        }
+        
         setMessages(prevMessages => [
           ...prevMessages,
           {
-            text: data.reply,
+            text: responseText,
             isUser: false,
             timestamp: new Date()
           }

@@ -170,18 +170,6 @@ const ChatInterface: React.FC = () => {
     setIsLoading(true);
     
     try {
-      const token = localStorage.getItem('sb-zgdrcbdrmnhvfzygyecx-auth-token');
-      let authToken = '';
-      
-      if (token) {
-        try {
-          const parsedToken = JSON.parse(token);
-          authToken = parsedToken.access_token || '';
-        } catch (e) {
-          console.error('Error parsing auth token:', e);
-        }
-      }
-      
       const { data, error } = await supabase.functions.invoke('chat-assistant', {
         body: { message: input, userId: user.id }
       });
@@ -190,14 +178,29 @@ const ChatInterface: React.FC = () => {
         throw new Error(`Error calling chat assistant: ${error.message}`);
       }
       
+      // Log the response to debug
+      console.log('Response from chat assistant:', data);
+      
+      // Check for different response formats
+      let responseText = '';
+      
+      if (data.choices && data.choices[0]?.message?.content) {
+        // Handle standard OpenAI response format
+        responseText = data.choices[0].message.content;
+      } else if (data.reply) {
+        // Handle custom reply format (if still used as fallback)
+        responseText = data.reply;
+      } else {
+        // If no recognizable format, show error
+        throw new Error('Unexpected response format from chat assistant');
+      }
+      
       const responseMessage: Message = {
-        text: data.reply || data.choices?.[0]?.message?.content || "I couldn't process your request properly.",
+        text: responseText,
         isUser: false,
         timestamp: new Date(),
         annotations: data.choices?.[0]?.annotations || []
       };
-      
-      console.log('Response with annotations:', responseMessage);
       
       setMessages((prev) => [...prev, responseMessage]);
     } catch (error) {
