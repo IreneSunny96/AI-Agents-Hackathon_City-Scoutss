@@ -92,13 +92,15 @@ const PreferenceSelection = () => {
         }
         
         if (profile && profile.personality_tiles) {
-          setPersonalityTiles(profile.personality_tiles);
+          // Fix: Properly type and cast the personality_tiles
+          const tilesData = profile.personality_tiles as PersonalityTiles;
+          setPersonalityTiles(tilesData);
           
           // Initialize selection state with all items selected
           const initialSelections: Record<string, string[]> = {};
-          Object.keys(profile.personality_tiles).forEach(key => {
-            if (Array.isArray(profile.personality_tiles[key]) && !key.includes('Reason')) {
-              initialSelections[key] = [...profile.personality_tiles[key]];
+          Object.keys(tilesData).forEach(key => {
+            if (Array.isArray(tilesData[key]) && !key.includes('Reason')) {
+              initialSelections[key] = [...tilesData[key]];
             }
           });
           
@@ -205,8 +207,9 @@ const PreferenceSelection = () => {
 
   // Current step data
   const currentStepData = steps[currentStep];
-  const currentTiles = personalityTiles ? personalityTiles[currentStepData.field] : [];
-  const selectedTilesForCurrentStep = selectedTiles[currentStepData.field] || [];
+  const currentField = currentStepData.field;
+  const currentTiles = personalityTiles ? personalityTiles[currentField] : [];
+  const selectedTilesForCurrentStep = selectedTiles[currentField] || [];
 
   return (
     <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4">
@@ -233,13 +236,13 @@ const PreferenceSelection = () => {
                     ? 'bg-scout-50 border-scout-200' 
                     : 'bg-card border-input hover:bg-accent/50'}
                 `}
-                onClick={() => handleTileToggle(currentStepData.field, tile)}
+                onClick={() => handleTileToggle(currentField as string, tile)}
               >
                 <div className="flex items-start gap-2">
                   <Checkbox
                     checked={selectedTilesForCurrentStep.includes(tile)}
                     className="mt-0.5 data-[state=checked]:bg-scout-500 data-[state=checked]:border-scout-500"
-                    onCheckedChange={() => handleTileToggle(currentStepData.field, tile)}
+                    onCheckedChange={() => handleTileToggle(currentField as string, tile)}
                   />
                   <div className="flex-1">
                     <p className="text-sm font-medium">{tile}</p>
