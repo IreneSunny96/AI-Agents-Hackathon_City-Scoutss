@@ -112,6 +112,11 @@ ${totalSearches}
 
 Create a very detailed persona report with the following sections:
 
+Your Info
+- Home: (with emoji): 
+
+- Work Place:
+
 1. 🍜 Preferences & Interests
    - Food & Cuisine: Analyze favorite cuisines, restaurants, and food-related searches.
    - Other interests: Identify hobbies, entertainment preferences, shopping habits, etc.
