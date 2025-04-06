@@ -2,11 +2,12 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { Card, CardContent } from '@/components/ui/card';
-import { Send, User, Bot, Loader2 } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Send, User, Bot, Loader2, ArrowLeft } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
+import { useNavigate } from 'react-router-dom';
 
 interface Message {
   text: string;
@@ -20,6 +21,7 @@ const ChatInterface: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { user } = useAuth();
+  const navigate = useNavigate();
 
   // Add welcome message when component mounts
   useEffect(() => {
@@ -116,7 +118,19 @@ const ChatInterface: React.FC = () => {
 
   return (
     <Card className="flex flex-col h-[500px] w-full">
-      <CardContent className="flex flex-col h-full p-4">
+      <CardHeader className="px-4 py-3 flex flex-row items-center justify-between">
+        <CardTitle className="text-lg">CityScout Assistant</CardTitle>
+        <Button 
+          variant="outline" 
+          size="sm" 
+          onClick={() => navigate('/profile')}
+          className="flex items-center text-xs"
+        >
+          <ArrowLeft className="mr-1 h-3 w-3" />
+          View My Preferences
+        </Button>
+      </CardHeader>
+      <CardContent className="flex flex-col h-full p-4 pt-0">
         <div className="flex-1 overflow-y-auto mb-4 space-y-4">
           {messages.map((message, index) => (
             <div 

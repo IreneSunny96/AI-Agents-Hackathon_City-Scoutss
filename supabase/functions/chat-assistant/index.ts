@@ -3,9 +3,9 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 // Get environment variables
-const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY');
-if (!OPENAI_API_KEY) {
-  throw new Error("OPENAI_API_KEY not found in environment variables.");
+const PERPLEXITY_API_KEY = Deno.env.get('PERPLEXITY_API_KEY');
+if (!PERPLEXITY_API_KEY) {
+  throw new Error("PERPLEXITY_API_KEY not found in environment variables.");
 }
 
 // CORS headers
@@ -98,15 +98,15 @@ Guidelines:
 7. When recommending places, consider the user's documented interests from their profile.
 8. Format your responses clearly with paragraph breaks. Don't use markdown formatting.`;
 
-    // Call OpenAI API
-    const openAIResponse = await fetch("https://api.openai.com/v1/chat/completions", {
+    // Call Perplexity API
+    const perplexityResponse = await fetch("https://api.perplexity.ai/chat/completions", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Authorization": `Bearer ${OPENAI_API_KEY}`
+        "Authorization": `Bearer ${PERPLEXITY_API_KEY}`
       },
       body: JSON.stringify({
-        model: "gpt-4o",
+        model: "llama-3.1-sonar-small-128k-online",
         messages: [
           {
             role: "system",
@@ -118,17 +118,20 @@ Guidelines:
           }
         ],
         temperature: 0.7,
-        max_tokens: 1000
+        max_tokens: 1000,
+        top_p: 0.9,
+        frequency_penalty: 1,
+        presence_penalty: 0
       })
     });
 
-    if (!openAIResponse.ok) {
-      const errorData = await openAIResponse.json();
-      console.error("OpenAI API error:", errorData);
-      throw new Error(`OpenAI API error: ${JSON.stringify(errorData)}`);
+    if (!perplexityResponse.ok) {
+      const errorData = await perplexityResponse.json();
+      console.error("Perplexity API error:", errorData);
+      throw new Error(`Perplexity API error: ${JSON.stringify(errorData)}`);
     }
 
-    const responseData = await openAIResponse.json();
+    const responseData = await perplexityResponse.json();
     const assistantReply = responseData.choices[0].message.content;
 
     return new Response(

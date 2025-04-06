@@ -59,30 +59,27 @@ const AboutMe = () => {
     }
   };
   
-  const formatReport = (text: string) => {
-    // Split by double newlines to separate paragraphs
-    const paragraphs = text.split(/\n\n+/);
+  const formatReportContent = (text: string) => {
+    const paragraphs = text.split('\n\n').filter(p => p.trim() !== '');
     
     return paragraphs.map((paragraph, index) => {
-      // Check if this is a heading (using simple heuristics)
+      // Check if this is a section heading (starts with emoji or contains ":")
       if (paragraph.match(/^[🍜🧘‍♂️🎭✈️🏙️🔎]/) || paragraph.includes(':')) {
-        // This looks like a heading or section title
         return <h2 key={index} className="text-xl font-semibold mt-6 mb-3">{paragraph}</h2>;
       }
       
       // Check for bullet points
       if (paragraph.includes('- ')) {
-        const listItems = paragraph.split(/\n- /);
-        
-        // First part might be a section title without bullet
-        const title = listItems.shift()?.replace('- ', '');
+        const lines = paragraph.split('\n');
+        const listItems = lines.filter(line => line.trim().startsWith('- '));
+        const nonListText = lines.filter(line => !line.trim().startsWith('- ')).join('\n');
         
         return (
           <div key={index} className="mb-4">
-            {title && !title.match(/^\s*$/) && <p className="mb-2">{title}</p>}
+            {nonListText && <p className="mb-2">{nonListText}</p>}
             <ul className="list-disc pl-6 space-y-1">
               {listItems.map((item, itemIndex) => (
-                <li key={itemIndex}>{item}</li>
+                <li key={itemIndex}>{item.replace('- ', '')}</li>
               ))}
             </ul>
           </div>
@@ -128,9 +125,18 @@ const AboutMe = () => {
               About Me
             </h1>
           </div>
-          <p className="text-lg text-muted-foreground mb-6">
-            A detailed analysis of your preferences and personality based on your activity data
-          </p>
+          
+          <div className="flex justify-between items-center mb-6">
+            <p className="text-lg text-muted-foreground">
+              A detailed analysis of your preferences and personality based on your activity data
+            </p>
+            <Button 
+              onClick={() => navigate('/profile')}
+              className="bg-scout-500 hover:bg-scout-600"
+            >
+              View Preferences
+            </Button>
+          </div>
           
           {!personalityReport ? (
             <Card className="mb-8 bg-muted/30">
@@ -148,7 +154,7 @@ const AboutMe = () => {
               </CardHeader>
               <CardContent>
                 <div className="prose prose-sm max-w-none dark:prose-invert">
-                  {formatReport(personalityReport)}
+                  {formatReportContent(personalityReport)}
                 </div>
               </CardContent>
             </Card>
