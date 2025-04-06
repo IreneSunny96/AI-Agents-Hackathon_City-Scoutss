@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import Header from '@/components/layout/Header';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, ArrowLeft, RefreshCcw } from 'lucide-react';
+import { Loader2, ArrowLeft, RefreshCcw, FileText } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
@@ -28,6 +28,7 @@ const AboutMe = () => {
   const [resetting, setResetting] = useState(false);
   const [hasPreferenceChosen, setHasPreferenceChosen] = useState(false);
   const [hasPersonalityInsights, setHasPersonalityInsights] = useState(false);
+  const [debugInfo, setDebugInfo] = useState<string | null>(null);
   
   useEffect(() => {
     if (!user) {
@@ -53,22 +54,52 @@ const AboutMe = () => {
         setHasPreferenceChosen(!!profile.preference_chosen);
         setHasPersonalityInsights(!!profile.has_personality_insights);
         
-        if (!profile.preference_chosen || !profile.has_personality_insights) {
-          setLoading(false);
-          return;
-        }
-        
         const userFolder = `user_data/${user.id}`;
+        const filePath = `${userFolder}/personality_report.txt`;
+        
+        console.log('Attempting to download report from path:', filePath);
+        setDebugInfo(`User ID: ${user.id}\nFile path: ${filePath}\nPreference chosen: ${profile.preference_chosen}\nHas insights: ${profile.has_personality_insights}`);
+        
         const { data, error } = await supabase.storage
           .from('user_files')
-          .download(`${userFolder}/personality_report.txt`);
+          .download(filePath);
         
         if (error) {
           console.error('Error downloading personality report:', error);
-          toast.error('Failed to load your personality report');
+          
+          const { data: bucketData, error: bucketError } = await supabase.storage
+            .getBucket('user_files');
+            
+          if (bucketError) {
+            console.error('Error checking bucket:', bucketError);
+            setDebugInfo(prev => `${prev}\nBucket error: ${bucketError.message}`);
+          } else {
+            console.log('Bucket exists:', bucketData);
+            setDebugInfo(prev => `${prev}\nBucket exists: ${!!bucketData}\nBucket public: ${bucketData?.public || false}`);
+          }
+          
+          const { data: folderData, error: folderError } = await supabase.storage
+            .from('user_files')
+            .list(userFolder);
+            
+          if (folderError) {
+            console.error('Error listing folder:', folderError);
+            setDebugInfo(prev => `${prev}\nFolder error: ${folderError.message}`);
+          } else {
+            console.log('Files in folder:', folderData);
+            const fileList = folderData?.map(f => f.name).join(', ') || 'none';
+            setDebugInfo(prev => `${prev}\nFiles in folder: ${fileList}`);
+          }
+          
+          if (!profile.preference_chosen || !profile.has_personality_insights) {
+            console.log('User profile flags indicate report should not exist yet');
+          } else {
+            toast.error('Failed to load your personality report');
+          }
         } else {
           const reportText = await data.text();
           setPersonalityReport(reportText);
+          console.log('Personality report loaded successfully');
         }
       } catch (error) {
         console.error('Error fetching personality report:', error);
@@ -145,6 +176,13 @@ const AboutMe = () => {
     }
   };
   
+  const handleManualUpload = () => {
+    if (!user) return;
+    
+    toast.info('This would trigger generation of the personality report');
+    console.log('Would call generate-personality-insights for user:', user.id);
+  };
+  
   if (loading) {
     return (
       <div className="min-h-screen flex flex-col bg-background">
@@ -201,12 +239,35 @@ const AboutMe = () => {
                     "You haven't confirmed your preferences yet. Go to the preferences page to complete your profile." : 
                     "You haven't generated a personality report yet. Go to the home page and upload your activity data to get started."}
                 </p>
-                <Button 
-                  onClick={() => navigate('/preferences')}
-                  className="bg-scout-500 hover:bg-scout-600"
-                >
-                  Complete Preferences
-                </Button>
+                <div className="flex flex-col space-y-4 w-full max-w-xs">
+                  <Button 
+                    onClick={() => navigate('/preferences')}
+                    className="bg-scout-500 hover:bg-scout-600 w-full"
+                  >
+                    Complete Preferences
+                  </Button>
+                  {hasPreferenceChosen && (
+                    <Button 
+                      onClick={handleManualUpload}
+                      variant="outline"
+                      className="w-full"
+                    >
+                      <FileText className="mr-2 h-4 w-4" />
+                      Generate Personality Report Manually
+                    </Button>
+                  )}
+                </div>
+                
+                {debugInfo && (
+                  <div className="mt-8 w-full">
+                    <details className="text-xs">
+                      <summary className="cursor-pointer text-muted-foreground">Debug Information</summary>
+                      <pre className="p-4 bg-muted rounded mt-2 overflow-x-auto">
+                        {debugInfo}
+                      </pre>
+                    </details>
+                  </div>
+                )}
               </CardContent>
             </Card>
           ) : (
