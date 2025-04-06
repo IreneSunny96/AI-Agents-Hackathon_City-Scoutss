@@ -174,13 +174,16 @@ const PreferenceSelection = () => {
           updatedTiles[category] = selectedTiles[category];
         });
         
-        // Update profile in database
+        // Update profile in database and mark onboarding as completed
         await updateProfile({
-          personality_tiles: updatedTiles
+          personality_tiles: updatedTiles,
+          onboarding_completed: true,
+          has_personality_insights: true
         });
         
         toast.success('Your preferences have been saved!');
-        navigate('/profile');
+        // Redirect to home page instead of profile page
+        navigate('/');
       }
     } catch (error) {
       console.error('Error saving preferences:', error);

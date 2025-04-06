@@ -242,8 +242,7 @@ const Index = () => {
     }
     
     if (hasExistingAnalysis) {
-      setIsProcessing(true);
-      setAnalysisComplete(true);
+      navigate('/profile');
       return;
     }
     

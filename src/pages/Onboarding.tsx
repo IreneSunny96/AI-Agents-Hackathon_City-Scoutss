@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
@@ -31,7 +30,13 @@ const Onboarding = () => {
   const [isProcessingPlaces, setIsProcessingPlaces] = useState(false);
   const [showPreferenceSelection, setShowPreferenceSelection] = useState(false);
   const [insightsGenerated, setInsightsGenerated] = useState(false);
-  
+
+  useEffect(() => {
+    if (user && profile && profile.onboarding_completed) {
+      navigate('/');
+    }
+  }, [user, profile, navigate]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -43,32 +48,25 @@ const Onboarding = () => {
     try {
       setLoading(true);
 
-      // Validate age if it's entered
       if (age && (isNaN(Number(age)) || Number(age) <= 0 || Number(age) > 120)) {
         toast.error('Please enter a valid age between 1 and 120');
         setLoading(false);
         return;
       }
 
-      // Show the profile setup screen
       setIsProfileSetupComplete(true);
       
-      // Update user profile after a short delay to show the loading state
       setTimeout(async () => {
         try {
-          // Update user profile
           await updateProfile({
             full_name: fullName,
             gender,
-            onboarding_completed: true,
           });
           
-          // Now try to call the Python backend to process the static JSON files
           setBackendProcessing(true);
           
           try {
             if (user) {
-              // Call your Python FastAPI backend
               const result = await processUserOnboarding(user.id, {
                 fullName,
                 age: age ? Number(age) : null,
@@ -80,13 +78,13 @@ const Onboarding = () => {
             }
           } catch (backendError) {
             console.error('Error calling Python backend:', backendError);
-            // We'll still continue with the onboarding even if the backend fails
             toast.error('There was an issue processing your data, but your profile has been set up.');
           } finally {
             setBackendProcessing(false);
           }
           
-          navigate('/');
+          setIsProfileSetupComplete(false);
+          setShowPlacesDialog(true);
         } catch (error) {
           console.error('Error updating profile:', error);
           toast.error('Failed to update profile. Please try again.');
@@ -120,7 +118,6 @@ const Onboarding = () => {
     setProcessingProgress(10);
 
     try {
-      // Read the file contents
       const fileContent = await placesDataFile.text();
       let activityData;
       
@@ -146,15 +143,11 @@ const Onboarding = () => {
         setProcessingStage('Finalizing your profile...');
         setProcessingProgress(90);
         
-        await updateProfile({
-          onboarding_completed: true
-        });
-          
         setProcessingProgress(100);
         setProcessingStage('Analysis complete!');
         setIsProcessingPlaces(false);
         setShowPlacesDialog(false);
-        setInsightsGenerated(false); // Reset in case they're re-uploading
+        setInsightsGenerated(false);
       } else {
         throw new Error('Failed to process places data');
       }
@@ -200,12 +193,10 @@ const Onboarding = () => {
     }
   };
 
-  // If we're showing the preference selection screen
   if (showPreferenceSelection && insightsGenerated) {
     return <PreferenceSelection />;
   }
 
-  // If we're in the profile setup complete state, show the loading screen
   if (isProfileSetupComplete) {
     return (
       <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4">
@@ -233,7 +224,6 @@ const Onboarding = () => {
     );
   }
 
-  // Show insights generation UI if analyzed but insights not yet generated
   if (isProcessingPlaces === false && processingProgress === 100 && !insightsGenerated) {
     return (
       <div className="min-h-screen flex flex-col bg-background">
@@ -326,7 +316,6 @@ const Onboarding = () => {
                 
                 <GoogleButton 
                   onClick={() => {
-                    // This button does nothing for now
                     toast.info('Google authentication will be implemented later');
                   }} 
                   loading={false}
