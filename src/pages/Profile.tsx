@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import Header from '@/components/layout/Header';
@@ -5,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { MapPin, Calendar, User, Loader2, Hash, ArrowLeft } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
-import { toast } from 'sonner';
+import { toast } from '@/components/ui/use-toast';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { ExtendedProfile } from '@/types/profiles';
@@ -64,8 +65,7 @@ const Profile = () => {
             // Add a toast to inform the user
             toast({
               title: "Complete Your Preferences",
-              description: "Please complete your preference selection before viewing your profile.",
-              variant: "default"
+              description: "Please complete your preference selection before viewing your profile."
             });
             navigate('/preferences');
             return;
