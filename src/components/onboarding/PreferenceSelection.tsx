@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -9,6 +8,7 @@ import { Loader2, ArrowRight, ArrowLeft, Check } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
+import { DeleteAccountDialog } from '@/components/ui/delete-account-dialog';
 
 // Define the structure of personality tiles data
 interface PersonalityTiles {
@@ -193,6 +193,17 @@ const PreferenceSelection = () => {
     }
   };
 
+  const handleDeleteAccount = async () => {
+    try {
+      await deleteAccount();
+      toast.success('Your account has been deleted successfully');
+      navigate('/auth');
+    } catch (error) {
+      console.error('Error deleting account:', error);
+      toast.error('Failed to delete your account. Please try again.');
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -256,33 +267,39 @@ const PreferenceSelection = () => {
           </div>
         </CardContent>
         
-        <CardFooter className="flex justify-between border-t p-6">
-          <Button
-            variant="outline"
-            onClick={handlePrevious}
-            disabled={currentStep === 0 || loading}
-          >
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            Previous
-          </Button>
+        <CardFooter className="flex flex-col border-t p-6">
+          <div className="flex justify-between w-full">
+            <Button
+              variant="outline"
+              onClick={handlePrevious}
+              disabled={currentStep === 0 || loading}
+            >
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              Previous
+            </Button>
+            
+            <Button 
+              onClick={handleNext}
+              className="bg-scout-500 hover:bg-scout-600"
+              disabled={loading}
+            >
+              {currentStep === steps.length - 1 ? (
+                <>
+                  <Check className="mr-2 h-4 w-4" />
+                  Complete
+                </>
+              ) : (
+                <>
+                  Next
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                </>
+              )}
+            </Button>
+          </div>
           
-          <Button 
-            onClick={handleNext}
-            className="bg-scout-500 hover:bg-scout-600"
-            disabled={loading}
-          >
-            {currentStep === steps.length - 1 ? (
-              <>
-                <Check className="mr-2 h-4 w-4" />
-                Complete
-              </>
-            ) : (
-              <>
-                Next
-                <ArrowRight className="ml-2 h-4 w-4" />
-              </>
-            )}
-          </Button>
+          <div className="w-full flex justify-center mt-6 pt-6 border-t">
+            <DeleteAccountDialog onConfirm={handleDeleteAccount} />
+          </div>
         </CardFooter>
       </Card>
     </div>
