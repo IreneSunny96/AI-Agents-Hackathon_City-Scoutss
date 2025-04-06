@@ -33,23 +33,15 @@ serve(async (req) => {
       apiKey: openAIApiKey
     });
 
-    const response = await client.chat.completions.create({
-      model: "gpt-4o",
-      messages: [
-        {
-          role: "system",
-          content: "You are a travel assistant that helps users discover places and activities. Use web search to provide up-to-date information about locations, attractions, and events."
-        },
-        {
-          role: "user",
-          content: query
-        }
-      ],
-      tools: [{ type: "web_search" }],
-      temperature: 0.7,
-    });
+    const response = await client.responses.create({
+    model: "gpt-4o",
+    tools: [ { type: "web_search_preview" } ],
+    input: "What was a positive news story from today?",
+});
 
-    const result = response.choices[0].message.content;
+    console.log(response.output_text)
+
+    const result = response.output_text;
     console.log('Search response:', result);
 
     return new Response(JSON.stringify({ result }), {
