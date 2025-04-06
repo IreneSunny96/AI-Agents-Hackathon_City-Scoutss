@@ -14,6 +14,55 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Helper function to generate personality insights
+const getPersonalityData = async (userId: string, supabaseClient: any) => {
+  try {
+    // Fetch personality data
+    let personalityReport = "";
+    let personalityTiles = {};
+    
+    try {
+      // First try to get the report from the database profile
+      const { data: profileData, error: profileError } = await supabaseClient
+        .from('profiles')
+        .select('personality_tiles')
+        .eq('id', userId)
+        .single();
+        
+      if (!profileError && profileData?.personality_tiles) {
+        personalityTiles = profileData.personality_tiles;
+      }
+      
+      // Check if user_files bucket exists
+      const { data: buckets } = await supabaseClient.storage.listBuckets();
+      const userFilesBucket = buckets.find((b: any) => b.name === 'user_files');
+      
+      if (userFilesBucket) {
+        // Try to get personality report from storage
+        const userFolder = `user_data/${userId}`;
+        const { data: reportData, error: reportError } = await supabaseClient.storage
+          .from('user_files')
+          .download(`${userFolder}/personality_report.txt`);
+        
+        if (!reportError) {
+          personalityReport = await reportData.text();
+        } else {
+          console.log("Could not fetch personality report from storage:", reportError.message);
+        }
+      } else {
+        console.log("user_files bucket does not exist");
+      }
+    } catch (error) {
+      console.error("Error fetching personality data:", error);
+    }
+    
+    return { personalityReport, personalityTiles };
+  } catch (error) {
+    console.error("Error in getPersonalityData:", error);
+    return { personalityReport: "", personalityTiles: {} };
+  }
+};
+
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -47,34 +96,8 @@ serve(async (req) => {
       { auth: { persistSession: false } }
     );
     
-    // Fetch personality data to include in the system prompt
-    const userFolder = `user_data/${userId}`;
-    let personalityReport = "";
-    let personalityTiles = {};
-    
-    try {
-      // Get personality report
-      const { data: reportData, error: reportError } = await supabaseClient.storage
-        .from('user_files')
-        .download(`${userFolder}/personality_report.txt`);
-      
-      if (!reportError) {
-        personalityReport = await reportData.text();
-      }
-      
-      // Get personality tiles
-      const { data: tilesData, error: tilesError } = await supabaseClient.storage
-        .from('user_files')
-        .download(`${userFolder}/personality_tiles.json`);
-      
-      if (!tilesError) {
-        const tilesText = await tilesData.text();
-        personalityTiles = JSON.parse(tilesText);
-      }
-    } catch (error) {
-      console.error("Error fetching personality data:", error);
-      // Continue even if we can't get the personality data
-    }
+    // Fetch personality data directly
+    const { personalityReport, personalityTiles } = await getPersonalityData(userId, supabaseClient);
     
     // Create system prompt including personality data
     const systemPrompt = `You are CityScout, a friendly and knowledgeable travel and city exploration assistant. 
