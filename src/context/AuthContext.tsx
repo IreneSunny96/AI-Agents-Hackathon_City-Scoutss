@@ -18,6 +18,7 @@ type AuthContextType = {
   updateProfile: (updates: Partial<Profile>) => Promise<void>;
   getGoogleAuthToken: () => Promise<string | null>;
   deleteAccount: () => Promise<void>;
+  resetUserData: () => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -229,6 +230,45 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const resetUserData = async () => {
+    try {
+      if (!user) throw new Error('User not authenticated');
+
+      const updates: ProfileUpdate = {
+        onboarding_completed: false,
+        has_personality_insights: false,
+        preference_chosen: false,
+        personality_tiles: null
+      };
+
+      const { error } = await supabase
+        .from('profiles')
+        .update(updates)
+        .eq('id', user.id);
+
+      if (error) {
+        console.error('Error resetting user data:', error.message);
+        throw error;
+      }
+
+      try {
+        const userFolder = `user_data/${user.id}`;
+        await supabase.storage
+          .from('user_files')
+          .remove([`${userFolder}/personality_report.txt`]);
+      } catch (fileError) {
+        console.log('Note: No personality report file to delete or error deleting:', fileError);
+      }
+
+      setProfile(prev => prev ? { ...prev, ...updates } : null);
+      
+      navigate('/');
+    } catch (error) {
+      console.error('Error resetting user data:', error);
+      throw error;
+    }
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -243,6 +283,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         updateProfile,
         getGoogleAuthToken,
         deleteAccount,
+        resetUserData,
       }}
     >
       {children}

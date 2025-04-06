@@ -1,20 +1,31 @@
-
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import Header from '@/components/layout/Header';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, ArrowLeft } from 'lucide-react';
+import { Loader2, ArrowLeft, RefreshCcw } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { DeleteAccountDialog } from '@/components/ui/delete-account-dialog';
+import { 
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 const AboutMe = () => {
-  const { user, signOut, deleteAccount } = useAuth();
+  const { user, signOut, deleteAccount, resetUserData } = useAuth();
   const navigate = useNavigate();
   const [personalityReport, setPersonalityReport] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [resetting, setResetting] = useState(false);
   const [hasPreferenceChosen, setHasPreferenceChosen] = useState(false);
   const [hasPersonalityInsights, setHasPersonalityInsights] = useState(false);
   
@@ -28,7 +39,6 @@ const AboutMe = () => {
       try {
         setLoading(true);
         
-        // First check if the user has confirmed preferences
         const { data: profile, error: profileError } = await supabase
           .from('profiles')
           .select('*')
@@ -40,11 +50,9 @@ const AboutMe = () => {
           return;
         }
         
-        // Set state based on profile data
         setHasPreferenceChosen(!!profile.preference_chosen);
         setHasPersonalityInsights(!!profile.has_personality_insights);
         
-        // If preferences haven't been confirmed, don't try to load the report
         if (!profile.preference_chosen || !profile.has_personality_insights) {
           setLoading(false);
           return;
@@ -120,6 +128,20 @@ const AboutMe = () => {
     } catch (error) {
       console.error('Error deleting account:', error);
       toast.error('Failed to delete your account. Please try again.');
+    }
+  };
+  
+  const handleReset = async () => {
+    try {
+      setResetting(true);
+      await resetUserData();
+      toast.success('Your profile has been reset successfully');
+      navigate('/');
+    } catch (error) {
+      console.error('Error resetting profile:', error);
+      toast.error('Failed to reset your profile. Please try again.');
+    } finally {
+      setResetting(false);
     }
   };
   
@@ -209,7 +231,43 @@ const AboutMe = () => {
               Back to Home
             </Button>
             
-            <DeleteAccountDialog onConfirm={handleDeleteAccount} />
+            <div className="flex space-x-4">
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button variant="outline" className="border-red-300 text-red-500 hover:bg-red-50 hover:text-red-600">
+                    <RefreshCcw className="mr-2 h-4 w-4" />
+                    Reset Profile
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Reset your profile?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      This will reset all your preferences and personality insights. You'll need to go through the onboarding process again. This action cannot be undone.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction
+                      onClick={handleReset}
+                      className="bg-red-500 hover:bg-red-600 text-white"
+                      disabled={resetting}
+                    >
+                      {resetting ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Resetting...
+                        </>
+                      ) : (
+                        'Reset Profile'
+                      )}
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+              
+              <DeleteAccountDialog onConfirm={handleDeleteAccount} />
+            </div>
           </div>
         </div>
       </main>
