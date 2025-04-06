@@ -1,10 +1,11 @@
+
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 // Get environment variables
-const PERPLEXITY_API_KEY = Deno.env.get('PERPLEXITY_API_KEY');
-if (!PERPLEXITY_API_KEY) {
-  throw new Error("PERPLEXITY_API_KEY not found in environment variables.");
+const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY');
+if (!OPENAI_API_KEY) {
+  throw new Error("OPENAI_API_KEY not found in environment variables.");
 }
 
 // CORS headers
@@ -236,16 +237,16 @@ Guidelines:
       );
     }
     
-    // Fallback to Perplexity API if webhook failed or returned unexpected data
-    console.log('Falling back to Perplexity API');
-    const perplexityResponse = await fetch("https://api.perplexity.ai/chat/completions", {
+    // Call OpenAI API with gpt-4o-mini model
+    console.log('Calling OpenAI API with gpt-4o-mini model');
+    const openaiResponse = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Authorization": `Bearer ${PERPLEXITY_API_KEY}`
+        "Authorization": `Bearer ${OPENAI_API_KEY}`
       },
       body: JSON.stringify({
-        model: "llama-3.1-sonar-small-128k-online",
+        model: "gpt-4o-mini",
         messages: [
           {
             role: "system",
@@ -264,17 +265,16 @@ Guidelines:
       })
     });
 
-    if (!perplexityResponse.ok) {
-      const errorData = await perplexityResponse.json();
-      console.error("Perplexity API error:", errorData);
-      throw new Error(`Perplexity API error: ${JSON.stringify(errorData)}`);
+    if (!openaiResponse.ok) {
+      const errorData = await openaiResponse.json();
+      console.error("OpenAI API error:", errorData);
+      throw new Error(`OpenAI API error: ${JSON.stringify(errorData)}`);
     }
 
-    const responseData = await perplexityResponse.json();
-    const assistantReply = responseData.choices[0].message.content;
-
+    const responseData = await openaiResponse.json();
+    
     return new Response(
-      JSON.stringify({ reply: assistantReply }),
+      JSON.stringify(responseData),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (error) {
