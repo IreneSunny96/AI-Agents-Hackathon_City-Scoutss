@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -221,10 +220,12 @@ ${personalityReport}
 
 Create distinct profile tiles:
  
-Each tile should be atleast 5 items, catchy phrase that encapsulates the user's interests or preferences.
-Each tile SHOULD be ultra specifc to the user and should be based on the data provided.
+Each tile should be at least 5 items, catchy phrase that encapsulates the user's interests or preferences.
+Each tile SHOULD be ultra specific to the user and should be based on the data provided.
 The tiles should be categorized into the following sections:
 The Tiles are used for user onboarding, so they should be very elegant and catchy.
+
+IMPORTANT: All "Reason" fields must be written in SECOND PERSON, directly addressing the user with "You" instead of talking about them in third person. For example, say "You enjoy international cuisine" rather than "The user enjoys international cuisine."
 
 1. Lifestyle Vibes
    - Generate lifestyle descriptors that best capture the user's overall personality and interests.
@@ -268,17 +269,17 @@ For each tile:
 Your output should be in JSON format with the following structure:
 {
   "Lifestyle Vibes": ["descriptor1", "descriptor2", ...],
-  "Lifestyle Vibes Reason": "A brief description of the lifestyle vibes selected above based on the user's data.",
+  "Lifestyle Vibes Reason": "You have these lifestyle vibes based on your search and visit patterns. You frequently...",
   "Food & Drink Favorites": ["descriptor1", "descriptor2", ...],
-  "Food & Drink Favorites Reason": "A brief description of the food & drink favorites selected above based on the user's data.",
+  "Food & Drink Favorites Reason": "Your food preferences show you enjoy these cuisines. You frequently search for...",
   "Go-to Activities": ["descriptor1", "descriptor2", ...],
-  "Go-to Activities Reason": "A brief description of the go-to activities selected above based on the user's data.",
+  "Go-to Activities Reason": "You often engage in these activities based on your search patterns. You regularly...",
   "Favorite Neighborhoods or Place Types": ["descriptor1", "descriptor2", ...],
-  "Favorite Neighborhoods or Place Types Reason": "A brief description of the favorite neighborhoods or place types selected above based on the user's data.",
+  "Favorite Neighborhoods or Place Types Reason": "You frequently visit or search for these types of places. You seem to enjoy...",
   "Travel & Exploration": ["descriptor1", "descriptor2", ...],
-  "Travel & Exploration Reason": "A brief description of the travel & exploration selected above based on the user's data.",
+  "Travel & Exploration Reason": "Your travel preferences indicate you enjoy these types of destinations. You search for...",
   "Other": ["descriptor1", "descriptor2", ...],
-  "Other Reason": "A brief description of the others selected above based on the user's data."
+  "Other Reason": "These additional interests are reflected in your search patterns. You demonstrate interest in..."
 }
 `;
     
