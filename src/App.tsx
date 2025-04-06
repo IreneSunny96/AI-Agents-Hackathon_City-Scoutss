@@ -1,4 +1,3 @@
-
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -12,10 +11,10 @@ import Profile from "./pages/Profile";
 import AboutMe from "./pages/AboutMe";
 import NotFound from "./pages/NotFound";
 import PreferenceSelection from "./components/onboarding/PreferenceSelection";
+import DiscoverPlaces from "./pages/DiscoverPlaces";
 
 const queryClient = new QueryClient();
 
-// Protected route component to handle auth redirection
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { user, loading } = useAuth();
   
@@ -25,16 +24,13 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
     </div>;
   }
   
-  // Not logged in - redirect to auth
   if (!user) {
     return <Navigate to="/auth" replace />;
   }
   
-  // User is logged in
   return <>{children}</>;
 };
 
-// Wrapper component to provide AuthContext
 const AppWithAuth = () => {
   return (
     <BrowserRouter>
@@ -45,11 +41,9 @@ const AppWithAuth = () => {
   );
 };
 
-// Routes component to use auth context
 const AppRoutes = () => {
   const { user, loading, profile } = useAuth();
   
-  // Show loading indicator while auth state is being determined
   if (loading) {
     return <div className="h-screen w-full flex items-center justify-center">
       <div className="h-8 w-8 border-4 border-scout-500 border-t-transparent rounded-full animate-spin"></div>
@@ -99,6 +93,14 @@ const AppRoutes = () => {
         element={
           <ProtectedRoute>
             <PreferenceSelection />
+          </ProtectedRoute>
+        } 
+      />
+      <Route 
+        path="/discover" 
+        element={
+          <ProtectedRoute>
+            <DiscoverPlaces />
           </ProtectedRoute>
         } 
       />

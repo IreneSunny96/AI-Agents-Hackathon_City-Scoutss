@@ -734,7 +734,11 @@ const Index = () => {
                 <p className="text-muted-foreground mb-4">
                   Find new spots to visit based on your interests and previous activities
                 </p>
-                <Button className="w-full" variant="outline">
+                <Button 
+                  className="w-full" 
+                  variant="outline"
+                  onClick={() => navigate('/discover')}
+                >
                   <span>Explore</span>
                   <ArrowRight className="ml-2 h-4 w-4" />
                 </Button>
