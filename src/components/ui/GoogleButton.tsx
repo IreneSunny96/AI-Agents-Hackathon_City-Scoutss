@@ -1,6 +1,7 @@
 
 import React from 'react';
 import { Button } from '../ui/button';
+import { supabase } from '@/integrations/supabase/client';
 
 interface GoogleButtonProps {
   onClick: () => void;
@@ -11,9 +12,30 @@ const GoogleButton: React.FC<GoogleButtonProps> = ({
   onClick, 
   loading = false 
 }) => {
+  const handleDemoLogin = async () => {
+    try {
+      // For demo purposes, directly authenticate as a specific user
+      const { data, error } = await supabase.auth.signInWithSession({
+        refresh_token: "demo-token",
+        user_id: "95a5cc01-4480-4dbe-b05b-f02a7ae6788f"
+      });
+      
+      if (error) {
+        console.error("Demo login error:", error);
+      } else {
+        console.log("Demo login successful");
+      }
+      
+      // Call the original onClick handler to continue the flow
+      onClick();
+    } catch (error) {
+      console.error("Error in demo login:", error);
+    }
+  };
+
   return (
     <Button
-      onClick={onClick}
+      onClick={handleDemoLogin}
       disabled={loading}
       variant="outline"
       className="w-full flex items-center justify-center gap-2 py-6 border-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800"

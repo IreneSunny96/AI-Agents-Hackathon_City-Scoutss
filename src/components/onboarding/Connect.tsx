@@ -4,6 +4,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { MapPin, Calendar, User } from 'lucide-react';
 import GoogleButton from '@/components/ui/GoogleButton';
 import { Button } from '@/components/ui/button';
+import { supabase } from '@/integrations/supabase/client';
 
 interface ConnectProps {
   onComplete?: () => void;
@@ -12,17 +13,37 @@ interface ConnectProps {
 const Connect: React.FC<ConnectProps> = ({ onComplete }) => {
   const [loading, setLoading] = useState(false);
 
-  const handleConnectGoogle = () => {
+  const handleConnectGoogle = async () => {
     setLoading(true);
     
-    // Mock Google authentication flow - just complete the onboarding without notifications
-    setTimeout(() => {
+    try {
+      // Reset any previous user data for demo purposes
+      const user = supabase.auth.getUser();
+      if (user) {
+        // Reset user profile data to ensure fresh onboarding
+        const { error } = await supabase
+          .from('profiles')
+          .update({
+            onboarding_completed: false,
+            has_personality_insights: false,
+            preference_chosen: false,
+            personality_tiles: null
+          })
+          .eq('id', '95a5cc01-4480-4dbe-b05b-f02a7ae6788f');
+          
+        if (error) {
+          console.error("Error resetting profile data:", error);
+        }
+      }
+    } catch (error) {
+      console.error("Error in demo setup:", error);
+    } finally {
       setLoading(false);
       
       if (onComplete) {
         onComplete();
       }
-    }, 1000);
+    }
   };
 
   const handleSkip = () => {
