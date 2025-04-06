@@ -15,6 +15,8 @@ const AboutMe = () => {
   const navigate = useNavigate();
   const [personalityReport, setPersonalityReport] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [hasPreferenceChosen, setHasPreferenceChosen] = useState(false);
+  const [hasPersonalityInsights, setHasPersonalityInsights] = useState(false);
   
   useEffect(() => {
     if (!user) {
@@ -29,7 +31,7 @@ const AboutMe = () => {
         // First check if the user has confirmed preferences
         const { data: profile, error: profileError } = await supabase
           .from('profiles')
-          .select('preference_chosen, has_personality_insights')
+          .select('*')
           .eq('id', user.id)
           .single();
           
@@ -37,6 +39,10 @@ const AboutMe = () => {
           console.error('Error fetching profile:', profileError);
           return;
         }
+        
+        // Set state based on profile data
+        setHasPreferenceChosen(!!profile.preference_chosen);
+        setHasPersonalityInsights(!!profile.has_personality_insights);
         
         // If preferences haven't been confirmed, don't try to load the report
         if (!profile.preference_chosen || !profile.has_personality_insights) {
@@ -169,7 +175,7 @@ const AboutMe = () => {
               <CardContent className="p-8 flex flex-col items-center justify-center">
                 <h2 className="text-xl font-semibold mb-2">No Personality Report Available</h2>
                 <p className="text-muted-foreground text-center max-w-md mb-4">
-                  {!loading ? 
+                  {!hasPreferenceChosen ? 
                     "You haven't confirmed your preferences yet. Go to the preferences page to complete your profile." : 
                     "You haven't generated a personality report yet. Go to the home page and upload your activity data to get started."}
                 </p>

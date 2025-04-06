@@ -9,6 +9,7 @@ import { Loader2, ArrowRight, ArrowLeft, Check } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
+import { ProfileUpdate } from '@/types/profiles';
 
 // Define the structure of personality tiles data
 interface PersonalityTiles {
@@ -174,13 +175,15 @@ const PreferenceSelection = () => {
           updatedTiles[category] = selectedTiles[category];
         });
         
-        // Update profile in database and mark preference_chosen and has_personality_insights as true, and onboarding as completed
-        await updateProfile({
+        // Update profile in database with proper type
+        const profileUpdate: ProfileUpdate = {
           personality_tiles: updatedTiles,
           preference_chosen: true,
           has_personality_insights: true,
           onboarding_completed: true
-        });
+        };
+        
+        await updateProfile(profileUpdate);
         
         toast.success('Your preferences have been saved!');
         // Redirect to home page after completing preferences

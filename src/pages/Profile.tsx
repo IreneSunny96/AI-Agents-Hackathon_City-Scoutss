@@ -8,7 +8,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { Tables } from '@/integrations/supabase/types';
+import { ExtendedProfile } from '@/types/profiles';
 
 interface PersonalityTiles {
   "Lifestyle Vibes": string[];
@@ -26,11 +26,12 @@ interface PersonalityTiles {
 }
 
 const Profile = () => {
-  const { user, profile, signOut } = useAuth();
+  const { user, profile: authProfile, signOut } = useAuth();
   const navigate = useNavigate();
   const [personalityReport, setPersonalityReport] = useState<string | null>(null);
   const [personalityTiles, setPersonalityTiles] = useState<PersonalityTiles | null>(null);
   const [loading, setLoading] = useState(true);
+  const [extendedProfile, setExtendedProfile] = useState<ExtendedProfile | null>(null);
   
   useEffect(() => {
     if (!user) {
@@ -42,22 +43,36 @@ const Profile = () => {
       try {
         setLoading(true);
         
+        // Fetch the complete profile including preference_chosen
+        const { data: profileData, error: profileError } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', user.id)
+          .single();
+          
+        if (profileError) {
+          console.error('Error fetching profile:', profileError);
+          return;
+        }
+        
+        setExtendedProfile(profileData as ExtendedProfile);
+        
         // First check if user has confirmed preferences
-        if (!profile?.preference_chosen) {
+        if (!profileData.preference_chosen) {
           // If preferences haven't been chosen yet but personality_tiles exist, redirect to preferences
-          if (profile?.personality_tiles) {
+          if (profileData.personality_tiles) {
             navigate('/preferences');
             return;
           }
         }
         
         // Get the tiles from the profile if available and preferences are chosen
-        if (profile?.personality_tiles && profile?.preference_chosen) {
-          setPersonalityTiles(profile.personality_tiles as unknown as PersonalityTiles);
+        if (profileData.personality_tiles && profileData.preference_chosen) {
+          setPersonalityTiles(profileData.personality_tiles as unknown as PersonalityTiles);
         }
         
         // Only try to get the report if preferences have been chosen
-        if (profile?.preference_chosen) {
+        if (profileData.preference_chosen) {
           // Try to get the report from storage
           const userFolder = `user_data/${user.id}`;
           const { data, error } = await supabase.storage
@@ -80,7 +95,7 @@ const Profile = () => {
     };
     
     fetchPersonalityData();
-  }, [user, profile, navigate]);
+  }, [user, navigate]);
   
   const handleLogout = async () => {
     try {
@@ -111,8 +126,7 @@ const Profile = () => {
     );
   }
   
-  // If preferences haven't been chosen, show a message about it
-  if (!profile?.preference_chosen) {
+  if (extendedProfile && !extendedProfile.preference_chosen) {
     return (
       <div className="min-h-screen flex flex-col bg-background">
         <Header onLogout={handleLogout} />
@@ -145,16 +159,16 @@ const Profile = () => {
                 </div>
                 <h2 className="text-xl font-semibold mb-2">Preferences Not Confirmed</h2>
                 <p className="text-muted-foreground text-center max-w-md mb-6">
-                  {profile?.personality_tiles ? 
+                  {extendedProfile.personality_tiles ? 
                     "You need to confirm your preferences before you can view your personality profile." :
                     "You haven't generated personality insights yet. Go back to the home page and upload your activity data to get started."}
                 </p>
                 
                 <Button 
-                  onClick={() => profile?.personality_tiles ? navigate('/preferences') : navigate('/')}
+                  onClick={() => extendedProfile.personality_tiles ? navigate('/preferences') : navigate('/')}
                   className="bg-scout-500 hover:bg-scout-600"
                 >
-                  {profile?.personality_tiles ? "Confirm Preferences" : "Get Started"}
+                  {extendedProfile.personality_tiles ? "Confirm Preferences" : "Get Started"}
                 </Button>
               </CardContent>
             </Card>
