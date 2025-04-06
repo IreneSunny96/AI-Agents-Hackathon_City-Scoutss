@@ -35,7 +35,7 @@ CityScout Compass analyzes your preferences and location history to provide tail
   - PostgreSQL Database
   - Storage
   - Edge Functions
-- **OpenAI**: AI capabilities for personality insights and recommendations
+- **LLM (Mistral and OpenAI)**: AI capabilities for personality insights and recommendations
 - **Google Drive API**: Integration for importing location data
 
 ## Getting Started
