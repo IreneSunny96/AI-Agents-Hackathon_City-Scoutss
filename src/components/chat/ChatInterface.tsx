@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -28,7 +29,9 @@ interface Annotation {
   };
 }
 
-const formatMarkdown = (text: string) => {
+const formatMarkdown = (text: string | undefined) => {
+  if (!text) return []; // Return empty array if text is undefined or null
+  
   const lines = text.split('\n');
   const result: React.ReactNode[] = [];
   let inList = false;

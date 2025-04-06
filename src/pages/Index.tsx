@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect } from 'react';
 import Header from '@/components/layout/Header';
 import { Button } from '@/components/ui/button';
@@ -26,7 +27,9 @@ import { Card, CardContent } from '@/components/ui/card';
 import { User, Bot, Send, Sparkles } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-const formatMarkdown = (text: string) => {
+const formatMarkdown = (text: string | undefined) => {
+  if (!text) return []; // Return empty array if text is undefined or null
+  
   const lines = text.split('\n');
   const result: React.ReactNode[] = [];
   let inList = false;
