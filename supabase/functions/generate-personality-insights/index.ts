@@ -188,7 +188,7 @@ Remember to maintain an objective tone and avoid speculative statements unless c
     const personalityReportData = await personalityReportResponse.json();
     const personalityReport = personalityReportData.choices[0].message.content;
     
-    // Save the personality report
+    // Save the personality report to storage
     const personalityReportBytes = new TextEncoder().encode(personalityReport);
     const { error: saveReportError } = await supabaseClient.storage
       .from('user_files')
@@ -198,8 +198,28 @@ Remember to maintain an objective tone and avoid speculative statements unless c
       });
     
     if (saveReportError) {
-      console.error('Error saving personality report:', saveReportError);
-      throw new Error(`Failed to save personality report: ${saveReportError.message}`);
+      console.error('Error saving personality report to storage:', saveReportError);
+      throw new Error(`Failed to save personality report to storage: ${saveReportError.message}`);
+    }
+    
+    // Save the personality report to the database
+    const { error: saveReportToDbError } = await supabaseClient
+      .from('user_data')
+      .upsert({
+        user_id: userId,
+        data_type: 'personality_report',
+        content: personalityReport,
+        updated_at: new Date().toISOString()
+      }, {
+        onConflict: 'user_id,data_type',
+        ignoreDuplicates: false
+      });
+    
+    if (saveReportToDbError) {
+      console.error('Error saving personality report to database:', saveReportToDbError);
+      // Don't throw, continue with the process
+    } else {
+      console.log('Successfully saved personality report to database');
     }
     
     // 6. Format the second prompt for personality tiles
@@ -329,7 +349,7 @@ Your output should be in JSON format with the following structure:
       throw new Error(`Failed to parse personality tiles JSON: ${parseError.message}`);
     }
     
-    // Save the personality tiles as a JSON file
+    // Save the personality tiles as a JSON file to storage
     const personalityTilesBytes = new TextEncoder().encode(JSON.stringify(personalityTiles, null, 2));
     const { error: saveTilesError } = await supabaseClient.storage
       .from('user_files')
@@ -339,8 +359,28 @@ Your output should be in JSON format with the following structure:
       });
     
     if (saveTilesError) {
-      console.error('Error saving personality tiles:', saveTilesError);
-      throw new Error(`Failed to save personality tiles: ${saveTilesError.message}`);
+      console.error('Error saving personality tiles to storage:', saveTilesError);
+      throw new Error(`Failed to save personality tiles to storage: ${saveTilesError.message}`);
+    }
+    
+    // Save the personality tiles to the database
+    const { error: saveTilesToDbError } = await supabaseClient
+      .from('user_data')
+      .upsert({
+        user_id: userId,
+        data_type: 'personality_tiles',
+        content: JSON.stringify(personalityTiles),
+        updated_at: new Date().toISOString()
+      }, {
+        onConflict: 'user_id,data_type',
+        ignoreDuplicates: false
+      });
+    
+    if (saveTilesToDbError) {
+      console.error('Error saving personality tiles to database:', saveTilesToDbError);
+      // Don't throw, continue with the process
+    } else {
+      console.log('Successfully saved personality tiles to database');
     }
     
     // 8. Save insights to profiles table
@@ -365,6 +405,10 @@ Your output should be in JSON format with the following structure:
       files_created: [
         'personality_report.txt',
         'personality_tiles.json'
+      ],
+      db_entries_created: [
+        'personality_report',
+        'personality_tiles'
       ]
     };
   } catch (error) {

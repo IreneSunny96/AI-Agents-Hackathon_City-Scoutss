@@ -22,35 +22,99 @@ const getPersonalityData = async (userId: string, supabaseClient: any) => {
     let personalityTiles = {};
     
     try {
-      // First try to get the report from the database profile
-      const { data: profileData, error: profileError } = await supabaseClient
-        .from('profiles')
-        .select('personality_tiles')
-        .eq('id', userId)
+      // First try to get data from the database tables
+      
+      // Get personality report from user_data table
+      const { data: reportData, error: reportError } = await supabaseClient
+        .from('user_data')
+        .select('content')
+        .eq('user_id', userId)
+        .eq('data_type', 'personality_report')
         .single();
         
-      if (!profileError && profileData?.personality_tiles) {
-        personalityTiles = profileData.personality_tiles;
+      if (!reportError && reportData?.content) {
+        personalityReport = reportData.content;
+        console.log("Successfully retrieved personality report from database");
+      } else {
+        console.log("Could not fetch personality report from database:", reportError?.message);
       }
       
-      // Check if user_files bucket exists
-      const { data: buckets } = await supabaseClient.storage.listBuckets();
-      const userFilesBucket = buckets.find((b: any) => b.name === 'user_files');
-      
-      if (userFilesBucket) {
-        // Try to get personality report from storage
-        const userFolder = `user_data/${userId}`;
-        const { data: reportData, error: reportError } = await supabaseClient.storage
-          .from('user_files')
-          .download(`${userFolder}/personality_report.txt`);
+      // Get personality tiles from user_data table
+      const { data: tilesData, error: tilesError } = await supabaseClient
+        .from('user_data')
+        .select('content')
+        .eq('user_id', userId)
+        .eq('data_type', 'personality_tiles')
+        .single();
         
-        if (!reportError) {
-          personalityReport = await reportData.text();
-        } else {
-          console.log("Could not fetch personality report from storage:", reportError.message);
+      if (!tilesError && tilesData?.content) {
+        try {
+          personalityTiles = JSON.parse(tilesData.content);
+          console.log("Successfully retrieved personality tiles from database");
+        } catch (parseError) {
+          console.error("Error parsing personality tiles from database:", parseError);
         }
       } else {
-        console.log("user_files bucket does not exist");
+        console.log("Could not fetch personality tiles from database:", tilesError?.message);
+      }
+      
+      // If we couldn't get data from the database, fall back to the profile table and storage
+      if (!personalityReport || Object.keys(personalityTiles).length === 0) {
+        console.log("Falling back to profile table and storage for personality data");
+        
+        // Try to get tiles from the profile
+        const { data: profileData, error: profileError } = await supabaseClient
+          .from('profiles')
+          .select('personality_tiles')
+          .eq('id', userId)
+          .single();
+          
+        if (!profileError && profileData?.personality_tiles) {
+          personalityTiles = profileData.personality_tiles;
+          console.log("Successfully retrieved personality tiles from profile");
+        } else {
+          console.log("Could not fetch personality tiles from profile:", profileError?.message);
+        }
+        
+        // Check if user_files bucket exists
+        const { data: buckets } = await supabaseClient.storage.listBuckets();
+        const userFilesBucket = buckets.find((b: any) => b.name === 'user_files');
+        
+        if (userFilesBucket) {
+          // Try to get personality report from storage
+          const userFolder = `user_data/${userId}`;
+          const { data: reportStorageData, error: reportStorageError } = await supabaseClient.storage
+            .from('user_files')
+            .download(`${userFolder}/personality_report.txt`);
+          
+          if (!reportStorageError) {
+            personalityReport = await reportStorageData.text();
+            console.log("Successfully retrieved personality report from storage");
+          } else {
+            console.log("Could not fetch personality report from storage:", reportStorageError.message);
+          }
+          
+          // If we still don't have tiles, try to get them from storage
+          if (Object.keys(personalityTiles).length === 0) {
+            const { data: tilesStorageData, error: tilesStorageError } = await supabaseClient.storage
+              .from('user_files')
+              .download(`${userFolder}/personality_tiles.json`);
+              
+            if (!tilesStorageError) {
+              try {
+                const tilesText = await tilesStorageData.text();
+                personalityTiles = JSON.parse(tilesText);
+                console.log("Successfully retrieved personality tiles from storage");
+              } catch (parseError) {
+                console.error("Error parsing personality tiles from storage:", parseError);
+              }
+            } else {
+              console.log("Could not fetch personality tiles from storage:", tilesStorageError.message);
+            }
+          }
+        } else {
+          console.log("user_files bucket does not exist");
+        }
       }
     } catch (error) {
       console.error("Error fetching personality data:", error);
@@ -96,7 +160,7 @@ serve(async (req) => {
       { auth: { persistSession: false } }
     );
     
-    // Fetch personality data directly
+    // Fetch personality data using our enhanced function
     const { personalityReport, personalityTiles } = await getPersonalityData(userId, supabaseClient);
     
     // Create system prompt including personality data
