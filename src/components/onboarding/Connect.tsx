@@ -1,9 +1,8 @@
 
 import React, { useState } from 'react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Calendar, MapPin, User } from 'lucide-react';
+import { MapPin, Calendar, User } from 'lucide-react';
 import GoogleButton from '@/components/ui/GoogleButton';
-import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 
 interface ConnectProps {
@@ -16,18 +15,17 @@ const Connect: React.FC<ConnectProps> = ({ onComplete }) => {
   const handleConnectGoogle = () => {
     setLoading(true);
     
-    // Mock Google authentication flow
+    // Mock Google authentication flow - just complete the onboarding without notifications
     setTimeout(() => {
       setLoading(false);
-      toast.success("Successfully connected to Google!");
       
       if (onComplete) {
         onComplete();
       }
-    }, 1500);
+    }, 1000);
   };
 
-  const mockSkip = () => {
+  const handleSkip = () => {
     if (onComplete) {
       onComplete();
     }
@@ -36,8 +34,6 @@ const Connect: React.FC<ConnectProps> = ({ onComplete }) => {
   return (
     <div className="min-h-screen flex items-center justify-center p-4 map-grid-bg">
       <div className="w-full max-w-md">
-        {/* Brand Header - Now removed from here */}
-        
         <Card className="border-scout-200 shadow-lg">
           <CardHeader className="space-y-1 text-center">
             <div className="flex justify-center mb-2">
@@ -57,10 +53,10 @@ const Connect: React.FC<ConnectProps> = ({ onComplete }) => {
           <CardContent className="space-y-4">
             <div className="text-center py-2 bg-scout-50 rounded-md">
               <p className="text-sm font-medium text-scout-700">
-                Connect to your Google account
+                Continue to City Scout
               </p>
               <p className="text-xs text-scout-600 px-4">
-                City Scout uses your Google data to provide personalized recommendations
+                Proceed to start exploring personalized recommendations
               </p>
             </div>
             
@@ -70,9 +66,9 @@ const Connect: React.FC<ConnectProps> = ({ onComplete }) => {
                   <MapPin className="h-4 w-4 text-scout-500" />
                 </div>
                 <div>
-                  <h3 className="font-medium">Google Maps Activity</h3>
+                  <h3 className="font-medium">Discover Places</h3>
                   <p className="text-sm text-muted-foreground">
-                    To understand places you've visited and your preferences
+                    Find destinations based on your interests
                   </p>
                 </div>
               </div>
@@ -82,9 +78,9 @@ const Connect: React.FC<ConnectProps> = ({ onComplete }) => {
                   <Calendar className="h-4 w-4 text-scout-500" />
                 </div>
                 <div>
-                  <h3 className="font-medium">Google Calendar</h3>
+                  <h3 className="font-medium">Plan Activities</h3>
                   <p className="text-sm text-muted-foreground">
-                    To find free time slots and schedule activities
+                    Get activity suggestions that match your preferences
                   </p>
                 </div>
               </div>
@@ -94,9 +90,9 @@ const Connect: React.FC<ConnectProps> = ({ onComplete }) => {
                   <User className="h-4 w-4 text-scout-500" />
                 </div>
                 <div>
-                  <h3 className="font-medium">Google Profile</h3>
+                  <h3 className="font-medium">Personalized Experience</h3>
                   <p className="text-sm text-muted-foreground">
-                    For basic account information
+                    Tailored recommendations just for you
                   </p>
                 </div>
               </div>
@@ -109,9 +105,9 @@ const Connect: React.FC<ConnectProps> = ({ onComplete }) => {
             <Button 
               variant="link" 
               className="text-muted-foreground text-sm"
-              onClick={mockSkip}
+              onClick={handleSkip}
             >
-              I'll do this later
+              Skip for now
             </Button>
           </CardFooter>
         </Card>

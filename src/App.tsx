@@ -17,7 +17,7 @@ const queryClient = new QueryClient();
 
 // Protected route component to handle auth redirection
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
-  const { user, loading, profile } = useAuth();
+  const { user, loading } = useAuth();
   
   if (loading) {
     return <div className="h-screen w-full flex items-center justify-center">
@@ -30,12 +30,7 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
     return <Navigate to="/auth" replace />;
   }
   
-  // Logged in but hasn't completed onboarding - redirect to onboarding
-  if (user && profile && !profile.onboarding_completed) {
-    return <Navigate to="/onboarding" replace />;
-  }
-  
-  // User is logged in and has completed onboarding
+  // User is logged in
   return <>{children}</>;
 };
 
@@ -67,9 +62,7 @@ const AppRoutes = () => {
         path="/" 
         element={
           user 
-            ? profile?.onboarding_completed 
-              ? <Index /> 
-              : <Navigate to="/onboarding" replace />
+            ? <Index /> 
             : <Auth />
         } 
       />
@@ -82,16 +75,14 @@ const AppRoutes = () => {
         element={
           !user 
             ? <Navigate to="/auth" replace />
-            : profile?.onboarding_completed
-              ? <Navigate to="/" replace />
-              : <Onboarding />
+            : <Onboarding />
         } 
       />
       <Route 
         path="/profile" 
         element={
           <ProtectedRoute>
-            {profile?.onboarding_completed ? <Profile /> : <Navigate to="/onboarding" replace />}
+            <Profile />
           </ProtectedRoute>
         } 
       />
@@ -99,20 +90,16 @@ const AppRoutes = () => {
         path="/about-me" 
         element={
           <ProtectedRoute>
-            {profile?.onboarding_completed ? <AboutMe /> : <Navigate to="/onboarding" replace />}
+            <AboutMe />
           </ProtectedRoute>
         } 
       />
       <Route 
         path="/preferences" 
         element={
-          !user
-            ? <Navigate to="/auth" replace />
-            : profile?.onboarding_completed
-              ? <Navigate to="/" replace />
-              : profile?.has_personality_insights
-                ? <PreferenceSelection />
-                : <Navigate to="/onboarding" replace />
+          <ProtectedRoute>
+            <PreferenceSelection />
+          </ProtectedRoute>
         } 
       />
       <Route path="*" element={<NotFound />} />
