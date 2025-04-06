@@ -1,3 +1,4 @@
+
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -129,7 +130,7 @@ const getPersonalityData = async (userId: string, supabaseClient: any) => {
 // Function to send prompt data to webhook
 const sendToWebhook = async (systemPrompt: string, userMessage: string) => {
   try {
-    const response = await fetch('https://roshantest.app.n8n.cloud/webhook/d6b247e5-7d68-486b-a887-48e419107e40', {
+    const response = await fetch('https://roshantest.app.n8n.cloud/webhook-test/d6b247e5-7d68-486b-a887-48e419107e40', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
