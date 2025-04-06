@@ -18,22 +18,18 @@ const Connect: React.FC<ConnectProps> = ({ onComplete }) => {
     
     try {
       // Reset any previous user data for demo purposes
-      const user = supabase.auth.getUser();
-      if (user) {
-        // Reset user profile data to ensure fresh onboarding
-        const { error } = await supabase
-          .from('profiles')
-          .update({
-            onboarding_completed: false,
-            has_personality_insights: false,
-            preference_chosen: false,
-            personality_tiles: null
-          })
-          .eq('id', '95a5cc01-4480-4dbe-b05b-f02a7ae6788f');
-          
-        if (error) {
-          console.error("Error resetting profile data:", error);
-        }
+      const { error } = await supabase
+        .from('profiles')
+        .update({
+          onboarding_completed: false,
+          has_personality_insights: false,
+          preference_chosen: false,
+          personality_tiles: null
+        })
+        .eq('id', '95a5cc01-4480-4dbe-b05b-f02a7ae6788f');
+        
+      if (error) {
+        console.error("Error resetting profile data:", error);
       }
     } catch (error) {
       console.error("Error in demo setup:", error);
