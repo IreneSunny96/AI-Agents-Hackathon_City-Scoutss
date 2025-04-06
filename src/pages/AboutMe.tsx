@@ -20,6 +20,97 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { cn } from '@/lib/utils';
+
+// Helper function to convert markdown to HTML
+const formatMarkdown = (text: string) => {
+  // Split the text into lines
+  const lines = text.split('\n');
+  const result: React.ReactNode[] = [];
+  let inList = false;
+  let listItems: string[] = [];
+  let key = 0;
+
+  // Process each line
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const trimmedLine = line.trim();
+    
+    // Skip empty lines
+    if (trimmedLine === '') {
+      if (inList) {
+        // End the current list
+        result.push(
+          <ul key={key++} className="list-disc pl-6 space-y-1 mb-4">
+            {listItems.map((item, index) => (
+              <li key={index}>{item}</li>
+            ))}
+          </ul>
+        );
+        inList = false;
+        listItems = [];
+      }
+      continue;
+    }
+
+    // Headers
+    if (trimmedLine.startsWith('# ')) {
+      result.push(<h1 key={key++} className="text-3xl font-bold mt-6 mb-4">{trimmedLine.slice(2)}</h1>);
+    } else if (trimmedLine.startsWith('## ')) {
+      result.push(<h2 key={key++} className="text-2xl font-semibold mt-5 mb-3">{trimmedLine.slice(3)}</h2>);
+    } else if (trimmedLine.startsWith('### ')) {
+      result.push(<h3 key={key++} className="text-xl font-semibold mt-4 mb-2">{trimmedLine.slice(4)}</h3>);
+    } else if (trimmedLine.startsWith('#### ')) {
+      result.push(<h4 key={key++} className="text-lg font-medium mt-3 mb-2">{trimmedLine.slice(5)}</h4>);
+    }
+    // Bold
+    else if (trimmedLine.match(/\*\*.*\*\*/)) {
+      const content = trimmedLine.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+      result.push(<p key={key++} className="mb-4" dangerouslySetInnerHTML={{ __html: content }} />);
+    }
+    // Emoji headers - custom format
+    else if (trimmedLine.match(/^[🍜🧘‍♂️🎭✈️🏙️🔎]/) || trimmedLine.includes(':')) {
+      result.push(<h2 key={key++} className="text-xl font-semibold mt-6 mb-3">{trimmedLine}</h2>);
+    }
+    // List items
+    else if (trimmedLine.startsWith('- ')) {
+      if (!inList) {
+        inList = true;
+        listItems = [];
+      }
+      listItems.push(trimmedLine.slice(2));
+    }
+    // Normal paragraph
+    else {
+      if (inList) {
+        // End the current list before starting a paragraph
+        result.push(
+          <ul key={key++} className="list-disc pl-6 space-y-1 mb-4">
+            {listItems.map((item, index) => (
+              <li key={index}>{item}</li>
+            ))}
+          </ul>
+        );
+        inList = false;
+        listItems = [];
+      }
+      result.push(<p key={key++} className="mb-4">{trimmedLine}</p>);
+    }
+  }
+
+  // Handle any remaining list items
+  if (inList && listItems.length > 0) {
+    result.push(
+      <ul key={key++} className="list-disc pl-6 space-y-1 mb-4">
+        {listItems.map((item, index) => (
+          <li key={index}>{item}</li>
+        ))}
+      </ul>
+    );
+  }
+
+  return result;
+};
 
 const AboutMe = () => {
   const { user, signOut, deleteAccount, resetUserData } = useAuth();
@@ -370,8 +461,8 @@ const AboutMe = () => {
                 <CardTitle>Personality Report</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="prose prose-sm max-w-none dark:prose-invert">
-                  {formatReportContent(personalityReport)}
+                <div className={cn("prose prose-sm max-w-none dark:prose-invert")}>
+                  {formatMarkdown(personalityReport)}
                 </div>
               </CardContent>
             </Card>
