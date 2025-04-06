@@ -135,7 +135,10 @@ serve(async (req) => {
   
   try {
     // Get the JSON body
-    const { message, userId, stream = true } = await req.json();
+    const requestData = await req.json();
+    const { message, userId, stream = false } = requestData;
+
+    console.log(`Processing request with data:`, JSON.stringify(requestData));
 
     if (!message) {
       return new Response(
@@ -196,7 +199,7 @@ Also talk about the Vibe of the places
 8. When recommending places, consider the user's documented interests from their profile.
 9. Format your responses clearly with paragraph breaks. Don't use markdown formatting.`;
 
-    // Call OpenAI API with o3-mini model
+    // Call OpenAI API
     console.log('Calling OpenAI API with o3-mini model');
     
     // Prepare request payload
@@ -225,9 +228,21 @@ Also talk about the Vibe of the places
     });
 
     if (!openaiResponse.ok) {
-      const errorData = await openaiResponse.json();
-      console.error("OpenAI API error:", errorData);
-      throw new Error(`OpenAI API error: ${JSON.stringify(errorData)}`);
+      const errorText = await openaiResponse.text();
+      console.error("OpenAI API error:", errorText);
+      try {
+        const errorData = JSON.parse(errorText);
+        console.error("Parsed OpenAI API error:", errorData);
+        return new Response(
+          JSON.stringify({ error: `OpenAI API error: ${JSON.stringify(errorData)}` }),
+          { status: openaiResponse.status, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      } catch (e) {
+        return new Response(
+          JSON.stringify({ error: `OpenAI API error: ${errorText}` }),
+          { status: openaiResponse.status, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
     }
 
     // If streaming is enabled, stream the response to the client
@@ -248,7 +263,7 @@ Also talk about the Vibe of the places
         } 
       });
     } else {
-      // Handle non-streaming response as before
+      // Handle non-streaming response
       const responseData = await openaiResponse.json();
       console.log("OpenAI API response:", JSON.stringify(responseData));
       

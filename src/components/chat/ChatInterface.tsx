@@ -228,8 +228,12 @@ const ChatInterface: React.FC = () => {
     abortControllerRef.current = new AbortController();
     
     try {
-      // We need to remove the signal from the options since it's not supported
-      // in the FunctionInvokeOptions type
+      console.log('Sending chat request to edge function:', { 
+        message: input, 
+        userId: user.id, 
+        stream: true 
+      });
+
       const response = await supabase.functions.invoke('chat-assistant', {
         body: { 
           message: input, 
@@ -245,6 +249,7 @@ const ChatInterface: React.FC = () => {
       }
       
       if (!response.data) {
+        console.error('No response data from chat-assistant function:', response);
         throw new Error('No response data from chat assistant');
       }
       
@@ -268,6 +273,8 @@ const ChatInterface: React.FC = () => {
         
         // Decode the received chunk
         const chunk = decoder.decode(value, { stream: true });
+        console.log('Received chunk:', chunk);
+        
         const lines = chunk.split('\n').filter(line => line.trim() !== '');
         
         // Process each line in the chunk
