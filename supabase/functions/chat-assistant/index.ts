@@ -204,7 +204,7 @@ Also talk about the Vibe of the places
     
     // Prepare request payload
     const openAIPayload = {
-      model: "o3-mini",
+      model: "gpt-4o-mini",
       messages: [
         {
           role: "system",
