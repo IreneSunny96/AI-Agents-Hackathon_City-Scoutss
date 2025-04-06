@@ -263,8 +263,8 @@ const PreferenceSelection = () => {
                 className={`
                   relative p-4 rounded-lg border transition-all cursor-pointer
                   ${selectedTilesForCurrentStep.includes(tile) 
-                    ? 'bg-scout-50 border-scout-200 text-foreground' 
-                    : 'bg-card border-input hover:bg-accent/50 text-foreground'}
+                    ? 'bg-scout-50 border-scout-200' 
+                    : 'bg-card border-input hover:bg-accent/50'}
                 `}
                 onClick={() => handleTileToggle(currentField as string, tile)}
               >
@@ -275,7 +275,7 @@ const PreferenceSelection = () => {
                     onCheckedChange={() => handleTileToggle(currentField as string, tile)}
                   />
                   <div className="flex-1">
-                    <p className="text-sm font-medium text-foreground">{tile}</p>
+                    <p className="text-sm font-medium text-black">{tile}</p>
                   </div>
                 </div>
               </div>
