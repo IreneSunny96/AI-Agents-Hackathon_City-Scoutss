@@ -130,16 +130,20 @@ const getPersonalityData = async (userId: string, supabaseClient: any) => {
 // Function to send prompt data to webhook
 const sendToWebhook = async (systemPrompt: string, userMessage: string) => {
   try {
-    const response = await fetch('https://roshantest.app.n8n.cloud/webhook-test/d6b247e5-7d68-486b-a887-48e419107e40', {
-      method: 'POST',
+    // Encode parameters for GET request
+    const params = new URLSearchParams({
+      systemPrompt: systemPrompt,
+      userMessage: userMessage,
+      timestamp: new Date().toISOString()
+    });
+    
+    const webhookUrl = `https://roshantest.app.n8n.cloud/webhook-test/d6b247e5-7d68-486b-a887-48e419107e40?${params.toString()}`;
+    
+    const response = await fetch(webhookUrl, {
+      method: 'GET',
       headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        systemPrompt,
-        userMessage,
-        timestamp: new Date().toISOString()
-      })
+        'Content-Type': 'application/json'
+      }
     });
     
     if (!response.ok) {
