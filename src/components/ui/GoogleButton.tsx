@@ -13,59 +13,33 @@ const GoogleButton: React.FC<GoogleButtonProps> = ({
   onClick, 
   loading = false 
 }) => {
-  const handleDemoLogin = async () => {
+  const handleGoogleLogin = async () => {
     try {
-      // For demo purposes, we'll use signInWithPassword with a demo email/password
-      // This simulates logging in as our demo user
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email: "demo@cityscout.ai",
-        password: "demo-password-123"
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: window.location.origin,
+          scopes: 'https://www.googleapis.com/auth/drive.readonly'
+        }
       });
       
       if (error) {
-        console.error("Demo login error:", error);
-        
-        // If the user doesn't exist yet, create it
-        if (error.message.includes("Invalid login credentials")) {
-          console.log("Creating demo user account...");
-          const { error: signUpError } = await supabase.auth.signUp({
-            email: "demo@cityscout.ai",
-            password: "demo-password-123",
-            options: {
-              data: {
-                id: "95a5cc01-4480-4dbe-b05b-f02a7ae6788f"
-              }
-            }
-          });
-          
-          if (signUpError) {
-            console.error("Error creating demo account:", signUpError);
-            toast.error("Could not create demo account");
-          } else {
-            // Try signing in again after account creation
-            await supabase.auth.signInWithPassword({
-              email: "demo@cityscout.ai",
-              password: "demo-password-123"
-            });
-          }
-        } else {
-          toast.error("Demo login failed");
-        }
-      } else {
-        console.log("Demo login successful");
+        console.error("Google login error:", error);
+        toast.error("Google login failed");
+        return;
       }
       
-      // Call the original onClick handler to continue the flow
+      // The onClick will be called after successful redirect back from Google
       onClick();
     } catch (error) {
-      console.error("Error in demo login:", error);
+      console.error("Error in Google login:", error);
       toast.error("Login failed");
     }
   };
 
   return (
     <Button
-      onClick={handleDemoLogin}
+      onClick={handleGoogleLogin}
       disabled={loading}
       variant="outline"
       className="w-full flex items-center justify-center gap-2 py-6 border-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800"
