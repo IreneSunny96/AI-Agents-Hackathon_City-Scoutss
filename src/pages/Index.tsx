@@ -24,6 +24,81 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Card, CardContent } from '@/components/ui/card';
 import { User, Bot, Send } from 'lucide-react';
+import { cn } from '@/lib/utils';
+
+const formatMarkdown = (text: string) => {
+  const lines = text.split('\n');
+  const result: React.ReactNode[] = [];
+  let inList = false;
+  let listItems: string[] = [];
+  let key = 0;
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const trimmedLine = line.trim();
+    
+    if (trimmedLine === '') {
+      if (inList) {
+        result.push(
+          <ul key={key++} className="list-disc pl-6 space-y-1 mb-2">
+            {listItems.map((item, index) => (
+              <li key={index}>{item}</li>
+            ))}
+          </ul>
+        );
+        inList = false;
+        listItems = [];
+      }
+      result.push(<br key={key++} />);
+      continue;
+    }
+
+    if (trimmedLine.startsWith('# ')) {
+      result.push(<h1 key={key++} className="text-lg font-bold mt-2 mb-1">{trimmedLine.slice(2)}</h1>);
+    } else if (trimmedLine.startsWith('## ')) {
+      result.push(<h2 key={key++} className="text-base font-semibold mt-2 mb-1">{trimmedLine.slice(3)}</h2>);
+    } else if (trimmedLine.startsWith('### ')) {
+      result.push(<h3 key={key++} className="text-sm font-semibold mt-1 mb-1">{trimmedLine.slice(4)}</h3>);
+    } 
+    else if (trimmedLine.match(/\*\*.*\*\*/)) {
+      const content = trimmedLine.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+      result.push(<p key={key++} className="mb-1" dangerouslySetInnerHTML={{ __html: content }} />);
+    }
+    else if (trimmedLine.startsWith('- ')) {
+      if (!inList) {
+        inList = true;
+        listItems = [];
+      }
+      listItems.push(trimmedLine.slice(2));
+    }
+    else {
+      if (inList) {
+        result.push(
+          <ul key={key++} className="list-disc pl-6 space-y-1 mb-2">
+            {listItems.map((item, index) => (
+              <li key={index}>{item}</li>
+            ))}
+          </ul>
+        );
+        inList = false;
+        listItems = [];
+      }
+      result.push(<p key={key++} className="mb-1">{trimmedLine}</p>);
+    }
+  }
+
+  if (inList && listItems.length > 0) {
+    result.push(
+      <ul key={key++} className="list-disc pl-6 space-y-1 mb-2">
+        {listItems.map((item, index) => (
+          <li key={index}>{item}</li>
+        ))}
+      </ul>
+    );
+  }
+
+  return result;
+};
 
 const Index = () => {
   const { profile, signOut, user } = useAuth();
@@ -651,13 +726,14 @@ const Index = () => {
                             : 'bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100 border dark:border-gray-700'
                         }`}
                       >
-                        <div className="whitespace-pre-wrap prose prose-sm max-w-none">
-                          {message.text.split('\n').map((text, i) => (
-                            <p key={i} className={`${i > 0 ? 'mt-2' : ''} ${message.isUser ? 'text-white' : 'text-gray-900 dark:text-gray-100'}`}>
-                              {text}
-                            </p>
-                          ))}
-                        </div>
+                        {message.isUser ? (
+                          <div className="whitespace-pre-wrap">{message.text}</div>
+                        ) : (
+                          <div className={cn("prose prose-sm max-w-none", 
+                               message.isUser ? "prose-invert" : "")}>
+                            {formatMarkdown(message.text)}
+                          </div>
+                        )}
                         <div 
                           className={`text-xs mt-1 ${
                             message.isUser ? 'text-scout-100' : 'text-gray-500 dark:text-gray-400'
