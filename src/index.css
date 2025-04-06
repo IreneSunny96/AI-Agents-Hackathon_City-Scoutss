@@ -48,23 +48,23 @@
   }
 
   .dark {
-    --background: 180 10% 5%;
+    --background: 220 20% 10%;
     --foreground: 210 40% 98%;
 
-    --card: 180 10% 8%;
+    --card: 220 20% 13%;
     --card-foreground: 210 40% 98%;
 
-    --popover: 180 10% 8%;
+    --popover: 220 20% 13%;
     --popover-foreground: 210 40% 98%;
 
-    --primary: 180 100% 40%;
-    --primary-foreground: 180 10% 10%;
+    --primary: 180 100% 45%;
+    --primary-foreground: 220 20% 10%;
 
-    --secondary: 180 10% 15%;
+    --secondary: 220 20% 16%;
     --secondary-foreground: 210 40% 98%;
 
-    --muted: 180 10% 15%;
-    --muted-foreground: 180 5% 65%;
+    --muted: 220 20% 16%;
+    --muted-foreground: 215 20% 65%;
 
     --accent: 175 20% 20%;
     --accent-foreground: 0 0% 98%;
@@ -72,18 +72,18 @@
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 210 40% 98%;
 
-    --border: 180 10% 20%;
-    --input: 180 10% 20%;
-    --ring: 180 100% 40%;
+    --border: 220 20% 20%;
+    --input: 220 20% 20%;
+    --ring: 180 100% 45%;
     
-    --sidebar-background: 240 5.9% 10%;
-    --sidebar-foreground: 240 4.8% 95.9%;
-    --sidebar-primary: 224.3 76.3% 48%;
+    --sidebar-background: 220 20% 8%;
+    --sidebar-foreground: 210 40% 98%;
+    --sidebar-primary: 180 100% 45%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 3.7% 15.9%;
-    --sidebar-accent-foreground: 240 4.8% 95.9%;
-    --sidebar-border: 240 3.7% 15.9%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --sidebar-accent: 220 20% 16%;
+    --sidebar-accent-foreground: 210 40% 98%;
+    --sidebar-border: 220 20% 16%;
+    --sidebar-ring: 180 100% 45%;
   }
 }
 
@@ -93,7 +93,7 @@
   }
 
   body {
-    @apply bg-background text-foreground font-sans;
+    @apply bg-background text-foreground font-sans dark:bg-background dark:text-foreground;
     font-family: 'Inter', sans-serif;
   }
 
@@ -110,5 +110,10 @@
       transparent 1px
     );
     background-size: 20px 20px;
+  }
+
+  /* Glass effect for dark mode */
+  .glass-dark {
+    @apply backdrop-blur-md bg-black/20 border border-white/10 shadow-lg;
   }
 }
