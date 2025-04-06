@@ -608,10 +608,12 @@ const Index = () => {
         <div className="max-w-3xl mx-auto">
           <div className="mb-8 text-center">
             <h1 className="text-3xl font-bold mb-2">
-              Welcome {profile?.full_name ? `${profile.full_name.split(' ')[0]}` : ''} to CityScout
+              {profile?.full_name 
+                ? `Welcome Back ${profile.full_name.split(' ')[0]}! Here is your City Scout`
+                : 'Welcome to CityScout'}
             </h1>
             <p className="text-lg text-muted-foreground">
-              Your AI companion for exploring the city based on your interests
+              AI companion that knows who you are, where you are, and what you'd love to do right now.
             </p>
             
             <div className="mt-4 flex justify-center">
