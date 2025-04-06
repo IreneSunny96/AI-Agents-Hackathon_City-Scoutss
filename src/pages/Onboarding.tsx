@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
@@ -192,10 +193,11 @@ const Onboarding = () => {
     }
   };
 
-  if (showPreferenceSelection && insightsGenerated) {
-    navigate('/preferences');
-    return null;
-  }
+  // Remove this condition since it's causing issues with the preferences page
+  // if (showPreferenceSelection && insightsGenerated) {
+  //   navigate('/preferences');
+  //   return null;
+  // }
 
   if (isProfileSetupComplete) {
     return (

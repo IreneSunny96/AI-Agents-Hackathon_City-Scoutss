@@ -182,7 +182,7 @@ const PreferenceSelection = () => {
         });
         
         toast.success('Your preferences have been saved!');
-        // Redirect to home page instead of profile page
+        // Redirect to home page after completing preferences
         navigate('/');
       }
     } catch (error) {
