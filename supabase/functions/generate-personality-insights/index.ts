@@ -14,79 +14,6 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Define the JSON schema for personality tiles
-const personalityTilesSchema = {
-  "type": "object", // Adding the missing "type": "object" property
-  "name": "personality_tiles",
-  "description": "JSON Response model for personality tiles schema.",
-  "strict": true,
-  "properties": { 
-    "Lifestyle Vibes": {
-      "type": "array",
-      "items": { "type": "string" }
-    },
-    "Lifestyle Vibes Reason": {
-      "type": "string",
-      "description": "A brief description of the lifestyle vibes selected above based on the user's data."
-    },
-    "Food & Drink Favorites": {
-      "type": "array",
-      "items": { "type": "string" }
-    },
-    "Food & Drink Favorites Reason": {
-      "type": "string",
-      "description": "A brief description of the food & drink favorites selected above based on the user's data."
-    },
-    "Go-to Activities": {
-      "type": "array",
-      "items": { "type": "string" }
-    },
-    "Go-to Activities Reason": {
-      "type": "string",
-      "description": "A brief description of the go-to activities selected above based on the user's data."
-    },
-    "Favorite Neighborhoods or Place Types": {
-      "type": "array",
-      "items": { "type": "string" }
-    },
-    "Favorite Neighborhoods or Place Types Reason": {
-      "type": "string",
-      "description": "A brief description of the favorite neighborhoods or place types selected above based on the user's data."
-    },
-    "Travel & Exploration": {
-      "type": "array",
-      "items": { "type": "string" }
-    },
-    "Travel & Exploration Reason": {
-      "type": "string",
-      "description": "A brief description of the travel & exploration selected above based on the user's data."
-    },
-    "Other": {
-      "type": "array",
-      "items": { "type": "string" }
-    },
-    "Other Reason": {
-      "type": "string",
-      "description": "A brief description of the others selected above based on the user's data."
-    }
-  },
-  "required": [
-    "Lifestyle Vibes",
-    "Lifestyle Vibes Reason",
-    "Food & Drink Favorites",
-    "Food & Drink Favorites Reason",
-    "Go-to Activities",
-    "Go-to Activities Reason",
-    "Favorite Neighborhoods or Place Types",
-    "Favorite Neighborhoods or Place Types Reason",
-    "Travel & Exploration",
-    "Travel & Exploration Reason",
-    "Other",
-    "Other Reason"
-  ],
-  "additionalProperties": false
-};
-
 // Main function to generate personality insights
 const generatePersonalityInsights = async (userId: string, supabaseClient: any) => {
   console.log(`Generating personality insights for user ${userId}`);
@@ -337,12 +264,28 @@ For each tile:
 - Use concise, engaging language.
 - Prioritize items based on frequency and recency in the data.
 - Ensure diversity in the selections to capture various aspects of the user's preferences.
+
+Your output should be in JSON format with the following structure:
+{
+  "Lifestyle Vibes": ["descriptor1", "descriptor2", ...],
+  "Lifestyle Vibes Reason": "A brief description of the lifestyle vibes selected above based on the user's data.",
+  "Food & Drink Favorites": ["descriptor1", "descriptor2", ...],
+  "Food & Drink Favorites Reason": "A brief description of the food & drink favorites selected above based on the user's data.",
+  "Go-to Activities": ["descriptor1", "descriptor2", ...],
+  "Go-to Activities Reason": "A brief description of the go-to activities selected above based on the user's data.",
+  "Favorite Neighborhoods or Place Types": ["descriptor1", "descriptor2", ...],
+  "Favorite Neighborhoods or Place Types Reason": "A brief description of the favorite neighborhoods or place types selected above based on the user's data.",
+  "Travel & Exploration": ["descriptor1", "descriptor2", ...],
+  "Travel & Exploration Reason": "A brief description of the travel & exploration selected above based on the user's data.",
+  "Other": ["descriptor1", "descriptor2", ...],
+  "Other Reason": "A brief description of the others selected above based on the user's data."
+}
 `;
     
-    // 7. Call OpenAI to generate the personality tiles using the new responses endpoint
-    console.log('Calling OpenAI responses endpoint to generate personality tiles with JSON schema...');
+    // 7. Call OpenAI to generate the personality tiles
+    console.log('Calling OpenAI to generate personality tiles...');
     
-    const personalityTilesResponse = await fetch('https://api.openai.com/v1/responses', {
+    const personalityTilesResponse = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${OPENAI_API_KEY}`,
@@ -350,24 +293,19 @@ For each tile:
       },
       body: JSON.stringify({
         model: 'gpt-4o',
-        input: [
+        messages: [
           {
             role: 'system',
-            content: 'You are an AI assistant specializing in user profiling and personalization. You will return the requested data in a specific JSON format.'
+            content: 'You are an AI assistant specializing in user profiling and personalization. You will return the requested data in a valid JSON format.'
           },
           {
             role: 'user',
             content: personalityTilesPrompt
           }
         ],
-        text: {
-          format: {
-            type: 'json_schema',
-            name: 'personality_tiles',
-            schema: personalityTilesSchema,
-            strict: true
-          }
-        }
+        temperature: 0.7,
+        max_tokens: 2000,
+        response_format: { type: "json_object" }
       }),
     });
     
@@ -378,39 +316,14 @@ For each tile:
     }
     
     const personalityTilesData = await personalityTilesResponse.json();
-    const personalityTilesJson = personalityTilesData.text.value;
+    const personalityTilesJson = personalityTilesData.choices[0].message.content;
     
-    // Parse and validate the personality tiles JSON
+    // Parse and save the personality tiles JSON
     let personalityTiles;
     try {
       personalityTiles = JSON.parse(personalityTilesJson);
-      console.log('Successfully parsed personality tiles JSON');
-      
-      // Basic validation
-      const requiredFields = [
-        'Lifestyle Vibes',
-        'Lifestyle Vibes Reason',
-        'Food & Drink Favorites',
-        'Food & Drink Favorites Reason',
-        'Go-to Activities',
-        'Go-to Activities Reason',
-        'Favorite Neighborhoods or Place Types',
-        'Favorite Neighborhoods or Place Types Reason',
-        'Travel & Exploration',
-        'Travel & Exploration Reason',
-        'Other',
-        'Other Reason'
-      ];
-      
-      for (const field of requiredFields) {
-        if (!personalityTiles[field]) {
-          throw new Error(`Missing required field: ${field}`);
-        }
-      }
-      
-      console.log('Successfully validated personality tiles data against schema');
     } catch (parseError) {
-      console.error('Error parsing or validating personality tiles JSON:', parseError);
+      console.error('Error parsing personality tiles JSON:', parseError);
       throw new Error(`Failed to parse personality tiles JSON: ${parseError.message}`);
     }
     

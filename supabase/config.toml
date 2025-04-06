@@ -7,6 +7,3 @@ project_id = "zgdrcbdrmnhvfzygyecx"
 
 [functions.process-places-data]
 verify_jwt = true
-
-[functions.generate-personality-insights]
-verify_jwt = true
