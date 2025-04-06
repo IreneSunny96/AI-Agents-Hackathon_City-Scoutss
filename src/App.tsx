@@ -9,6 +9,7 @@ import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import Onboarding from "./pages/Onboarding";
 import Profile from "./pages/Profile";
+import AboutMe from "./pages/AboutMe";
 import NotFound from "./pages/NotFound";
 import PreferenceSelection from "./components/onboarding/PreferenceSelection";
 
@@ -91,6 +92,14 @@ const AppRoutes = () => {
         element={
           <ProtectedRoute>
             {profile?.onboarding_completed ? <Profile /> : <Navigate to="/onboarding" replace />}
+          </ProtectedRoute>
+        } 
+      />
+      <Route 
+        path="/about-me" 
+        element={
+          <ProtectedRoute>
+            {profile?.onboarding_completed ? <AboutMe /> : <Navigate to="/onboarding" replace />}
           </ProtectedRoute>
         } 
       />

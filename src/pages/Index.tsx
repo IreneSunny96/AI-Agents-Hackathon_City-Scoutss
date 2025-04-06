@@ -22,6 +22,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import ChatInterface from '@/components/chat/ChatInterface';
 
 const Index = () => {
   const { profile, signOut, user } = useAuth();
@@ -379,6 +380,14 @@ const Index = () => {
                     View Your Preferences
                   </Button>
                   
+                  <Button 
+                    onClick={() => navigate('/about-me')}
+                    variant="outline" 
+                    size="lg"
+                  >
+                    About Me
+                  </Button>
+                  
                   <AlertDialog open={showDeleteConfirmDialog} onOpenChange={setShowDeleteConfirmDialog}>
                     <AlertDialogTrigger asChild>
                       <Button variant="outline" size="lg">
@@ -479,6 +488,13 @@ const Index = () => {
               </DialogContent>
             </Dialog>
           </div>
+          
+          {hasExistingAnalysis && (
+            <div className="mb-12">
+              <h2 className="text-2xl font-semibold mb-4">Chat with CityScout</h2>
+              <ChatInterface />
+            </div>
+          )}
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-12">
             <div className="bg-white dark:bg-gray-800 rounded-lg border p-6 shadow-sm">
