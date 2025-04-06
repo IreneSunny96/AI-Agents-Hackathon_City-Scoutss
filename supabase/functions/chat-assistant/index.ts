@@ -193,7 +193,7 @@ Guidelines:
         "Authorization": `Bearer ${OPENAI_API_KEY}`
       },
       body: JSON.stringify({
-        model: "gpt-4o-mini",
+        model: "o3-mini",
         messages: [
           {
             role: "system",
