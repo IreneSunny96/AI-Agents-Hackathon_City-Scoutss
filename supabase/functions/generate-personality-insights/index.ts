@@ -338,10 +338,10 @@ For each tile:
 - Ensure diversity in the selections to capture various aspects of the user's preferences.
 `;
     
-    // 7. Call OpenAI to generate the personality tiles
-    console.log('Calling OpenAI to generate personality tiles with JSON schema...');
+    // 7. Call OpenAI to generate the personality tiles using the new responses endpoint
+    console.log('Calling OpenAI responses endpoint to generate personality tiles with JSON schema...');
     
-    const personalityTilesResponse = await fetch('https://api.openai.com/v1/chat/completions', {
+    const personalityTilesResponse = await fetch('https://api.openai.com/v1/responses', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${OPENAI_API_KEY}`,
@@ -349,7 +349,7 @@ For each tile:
       },
       body: JSON.stringify({
         model: 'gpt-4o',
-        messages: [
+        input: [
           {
             role: 'system',
             content: 'You are an AI assistant specializing in user profiling and personalization. You will return the requested data in a specific JSON format.'
@@ -359,11 +359,13 @@ For each tile:
             content: personalityTilesPrompt
           }
         ],
-        temperature: 0.7,
-        max_tokens: 2000,
-        response_format: {
-          type: 'json_object',
-          schema: personalityTilesSchema
+        text: {
+          format: {
+            type: 'json_schema',
+            name: 'personality_tiles',
+            schema: personalityTilesSchema,
+            strict: true
+          }
         }
       }),
     });
@@ -375,7 +377,7 @@ For each tile:
     }
     
     const personalityTilesData = await personalityTilesResponse.json();
-    const personalityTilesJson = personalityTilesData.choices[0].message.content;
+    const personalityTilesJson = personalityTilesData.text.value;
     
     // Parse and validate the personality tiles JSON
     let personalityTiles;
