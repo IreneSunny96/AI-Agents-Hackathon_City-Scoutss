@@ -77,5 +77,3 @@ url = ""
 verify_jwt = true
 [functions.create-storage-bucket]
 verify_jwt = true
-[functions.advanced-search]
-verify_jwt = false

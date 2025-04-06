@@ -144,36 +144,3 @@ export const generatePersonalityInsights = async (userId: string) => {
     throw error;
   }
 };
-
-/**
- * Performs advanced search using OpenAI with web search capability
- * @param query The search query
- */
-export const performAdvancedSearch = async (query: string) => {
-  try {
-    const response = await fetch(`https://${SUPABASE_PROJECT_ID}.supabase.co/functions/v1/advanced-search`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ query }),
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('Advanced search error:', response.status, errorText);
-      let errorData;
-      try {
-        errorData = JSON.parse(errorText);
-      } catch (e) {
-        errorData = { error: errorText || 'Unknown error' };
-      }
-      throw new Error(`API error: ${response.status} - ${errorData.error || 'Unknown error'}`);
-    }
-
-    return await response.json();
-  } catch (error) {
-    console.error('Error performing advanced search:', error);
-    throw error;
-  }
-};

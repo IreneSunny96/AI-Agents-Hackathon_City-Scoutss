@@ -1,430 +1,898 @@
-
-import { useEffect, useState } from 'react';
-import { Input } from '@/components/ui/input';
+import React, { useState, useRef, useEffect } from 'react';
+import Header from '@/components/layout/Header';
 import { Button } from '@/components/ui/button';
-import { Search, Loader2, Zap } from 'lucide-react';
-import { toast } from 'sonner';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card"
-import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from "@/components/ui/tabs"
+import { MapPin, Calendar, Search, ArrowRight, UserCog, Loader2, Upload, Check, Trash2, ArrowLeft } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { generatePersonalityInsights, processPlacesData } from '@/services/apiService';
-import GDrivePicker from '@/components/GDrivePicker';
-import { processUserOnboarding } from '@/services/apiService';
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form"
-import { z } from "zod"
-import { zodResolver } from "@hookform/resolvers/zod"
-import { useForm } from "react-hook-form"
-import { performAdvancedSearch } from '@/services/apiService';
+import { toast } from 'sonner';
+import { useNavigate } from 'react-router-dom';
+import { supabase } from '@/integrations/supabase/client';
+import { processPlacesData, generatePersonalityInsights } from '@/services/apiService';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Progress } from '@/components/ui/progress';
+import { Input } from '@/components/ui/input';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { 
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { Card, CardContent } from '@/components/ui/card';
+import { User, Bot, Send, Sparkles } from 'lucide-react';
+import { cn } from '@/lib/utils';
+
+const formatMarkdown = (text: string) => {
+  const lines = text.split('\n');
+  const result: React.ReactNode[] = [];
+  let inList = false;
+  let listItems: string[] = [];
+  let key = 0;
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const trimmedLine = line.trim();
+    
+    if (trimmedLine === '') {
+      if (inList) {
+        result.push(
+          <ul key={key++} className="list-disc pl-6 space-y-1 mb-2">
+            {listItems.map((item, index) => (
+              <li key={index}>{item}</li>
+            ))}
+          </ul>
+        );
+        inList = false;
+        listItems = [];
+      }
+      result.push(<br key={key++} />);
+      continue;
+    }
+
+    if (trimmedLine.startsWith('# ')) {
+      result.push(<h1 key={key++} className="text-lg font-bold mt-2 mb-1">{trimmedLine.slice(2)}</h1>);
+    } else if (trimmedLine.startsWith('## ')) {
+      result.push(<h2 key={key++} className="text-base font-semibold mt-2 mb-1">{trimmedLine.slice(3)}</h2>);
+    } else if (trimmedLine.startsWith('### ')) {
+      result.push(<h3 key={key++} className="text-sm font-semibold mt-1 mb-1">{trimmedLine.slice(4)}</h3>);
+    } 
+    else if (trimmedLine.match(/\*\*.*\*\*/)) {
+      const content = trimmedLine.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+      result.push(<p key={key++} className="mb-1" dangerouslySetInnerHTML={{ __html: content }} />);
+    }
+    else if (trimmedLine.startsWith('- ')) {
+      if (!inList) {
+        inList = true;
+        listItems = [];
+      }
+      listItems.push(trimmedLine.slice(2));
+    }
+    else {
+      if (inList) {
+        result.push(
+          <ul key={key++} className="list-disc pl-6 space-y-1 mb-2">
+            {listItems.map((item, index) => (
+              <li key={index}>{item}</li>
+            ))}
+          </ul>
+        );
+        inList = false;
+        listItems = [];
+      }
+      result.push(<p key={key++} className="mb-1">{trimmedLine}</p>);
+    }
+  }
+
+  if (inList && listItems.length > 0) {
+    result.push(
+      <ul key={key++} className="list-disc pl-6 space-y-1 mb-2">
+        {listItems.map((item, index) => (
+          <li key={index}>{item}</li>
+        ))}
+      </ul>
+    );
+  }
+
+  return result;
+};
 
 const Index = () => {
-  const [searchQuery, setSearchQuery] = useState('');
-  const [recommendations, setRecommendations] = useState<string[]>([]);
-  const [loading, setLoading] = useState(false);
-  const { user, signOut } = useAuth();
-  const [profileData, setProfileData] = useState<any>(null);
+  const { profile, signOut, user } = useAuth();
+  const navigate = useNavigate();
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [personalityInsightsLoading, setPersonalityInsightsLoading] = useState(false);
-  const [personalityInsights, setPersonalityInsights] = useState<any>(null);
-  const [advancedSearchEnabled, setAdvancedSearchEnabled] = useState(false);
-  const [advancedSearchResult, setAdvancedSearchResult] = useState<string | null>(null);
-  const [isSearching, setIsSearching] = useState(false);
-
-  const profileFormSchema = z.object({
-    firstName: z.string().min(2, {
-      message: "First name must be at least 2 characters.",
-    }),
-    lastName: z.string().min(2, {
-      message: "Last name must be at least 2 characters.",
-    }),
-  })
-
-  const profileForm = useForm<z.infer<typeof profileFormSchema>>({
-    resolver: zodResolver(profileFormSchema),
-    defaultValues: {
-      firstName: "",
-      lastName: "",
-    },
-  })
-
-  function onSubmit(values: z.infer<typeof profileFormSchema>) {
-    toast({
-      description: (
-        <pre className="mt-2 w-[340px] rounded-md bg-slate-950 p-4">
-          <code className="text-white">{JSON.stringify(values, null, 2)}</code>
-        </pre>
-      ),
-    })
-  }
+  const [processingStage, setProcessingStage] = useState('');
+  const [processingProgress, setProcessingProgress] = useState(0);
+  const [showUploadDialog, setShowUploadDialog] = useState(false);
+  const [activityFile, setActivityFile] = useState<File | null>(null);
+  const [analysisComplete, setAnalysisComplete] = useState(false);
+  const [generatingInsights, setGeneratingInsights] = useState(false);
+  const [hasExistingAnalysis, setHasExistingAnalysis] = useState(false);
+  const [isDataDeletionInProgress, setIsDataDeletionInProgress] = useState(false);
+  const [showDeleteConfirmDialog, setShowDeleteConfirmDialog] = useState(false);
+  const [openAiKeyError, setOpenAiKeyError] = useState(false);
+  const [analysisSteps, setAnalysisSteps] = useState<{
+    text: string;
+    status: 'pending' | 'processing' | 'completed';
+  }[]>([
+    { text: 'Reading your activity data file', status: 'pending' },
+    { text: 'Parsing JSON data structure', status: 'pending' },
+    { text: 'Analyzing your search patterns', status: 'pending' },
+    { text: 'Processing location data', status: 'pending' },
+    { text: 'Identifying favorite places', status: 'pending' },
+    { text: 'Analyzing travel patterns', status: 'pending' },
+    { text: 'Finalizing your profile', status: 'pending' }
+  ]);
+  const [currentStepIndex, setCurrentStepIndex] = useState(0);
+  const [searchInput, setSearchInput] = useState('');
+  const [isChatting, setIsChatting] = useState(false);
+  const [messages, setMessages] = useState<Array<{text: string, isUser: boolean, timestamp: Date}>>([]);
+  const [isLoadingResponse, setIsLoadingResponse] = useState(false);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const [isAdvancedSearch, setIsAdvancedSearch] = useState(false);
+  const [isAdvancedSearchLoading, setIsAdvancedSearchLoading] = useState(false);
 
   useEffect(() => {
     if (user) {
-      setProfileData({
-        avatarUrl: user.user_metadata?.avatar_url,
-        email: user.email,
-        firstName: user.user_metadata?.first_name,
-        lastName: user.user_metadata?.last_name,
-      });
+      checkExistingAnalysis();
     }
   }, [user]);
 
-  const handleSearch = async () => {
-    if (!searchQuery.trim()) {
-      toast.error('Please enter a search query');
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
+
+  const checkExistingAnalysis = async () => {
+    if (!user) return;
+    
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('has_personality_insights')
+        .eq('id', user.id)
+        .single();
+      
+      if (error) {
+        console.error('Error checking analysis status:', error);
+        return;
+      }
+      
+      setHasExistingAnalysis(data?.has_personality_insights || false);
+    } catch (error) {
+      console.error('Error checking existing analysis:', error);
+    }
+  };
+
+  const handleLogout = async () => {
+    try {
+      await signOut();
+      toast.success('Logged out successfully');
+    } catch (error) {
+      console.error('Error logging out:', error);
+      toast.error('Failed to log out. Please try again.');
+    }
+  };
+
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    if (files && files.length > 0) {
+      setActivityFile(files[0]);
+    }
+  };
+
+  const deleteUserData = async () => {
+    if (!user) return;
+    
+    try {
+      setIsDataDeletionInProgress(true);
+      
+      const folderPath = `user_data/${user.id}`;
+      
+      const { data: files, error: listError } = await supabase
+        .storage
+        .from('user_files')
+        .list(folderPath);
+      
+      if (listError) {
+        console.error('Error listing files:', listError);
+      } else if (files && files.length > 0) {
+        for (const file of files) {
+          const { error: deleteError } = await supabase
+            .storage
+            .from('user_files')
+            .remove([`${folderPath}/${file.name}`]);
+          
+          if (deleteError) {
+            console.error(`Error deleting file ${file.name}:`, deleteError);
+          }
+        }
+      }
+      
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .update({ 
+          has_personality_insights: false,
+          personality_tiles: null
+        })
+        .eq('id', user.id);
+      
+      if (updateError) {
+        throw updateError;
+      }
+      
+      setHasExistingAnalysis(false);
+      setAnalysisComplete(false);
+      setShowDeleteConfirmDialog(false);
+      
+      toast.success('Your data has been deleted successfully');
+      
+      setShowUploadDialog(true);
+    } catch (error) {
+      console.error('Error deleting user data:', error);
+      toast.error('Failed to delete your data. Please try again.');
+    } finally {
+      setIsDataDeletionInProgress(false);
+    }
+  };
+
+  const updateAnalysisStep = (progress: number) => {
+    const totalSteps = analysisSteps.length;
+    const stepPercentage = 100 / totalSteps;
+    const newStepIndex = Math.min(Math.floor(progress / stepPercentage), totalSteps - 1);
+    
+    if (newStepIndex !== currentStepIndex) {
+      setCurrentStepIndex(newStepIndex);
+      
+      setAnalysisSteps(prevSteps => 
+        prevSteps.map((step, idx) => {
+          if (idx < newStepIndex) {
+            return { ...step, status: 'completed' as const };
+          } else if (idx === newStepIndex) {
+            return { ...step, status: 'processing' as const };
+          } else {
+            return { ...step, status: 'pending' as const };
+          }
+        })
+      );
+    }
+  };
+
+  const uploadAndProcessFile = async () => {
+    if (!activityFile || !user) {
+      toast.error('Please select a file first');
       return;
     }
 
-    if (advancedSearchEnabled) {
+    try {
+      setIsProcessing(true);
+      setAnalysisComplete(false);
+      setProcessingStage('Reading your activity data file...');
+      setProcessingProgress(10);
+      updateAnalysisStep(10);
+      
+      const fileContent = await activityFile.text();
+      let activityData;
+      
       try {
-        setIsSearching(true);
-        setAdvancedSearchResult(null);
-        const result = await performAdvancedSearch(searchQuery);
-        setAdvancedSearchResult(result.result);
-      } catch (error) {
-        console.error('Advanced search error:', error);
-        toast.error('Advanced search failed: ' + (error as Error).message);
-      } finally {
-        setIsSearching(false);
+        setProcessingStage('Parsing your activity data...');
+        setProcessingProgress(20);
+        updateAnalysisStep(20);
+        
+        activityData = JSON.parse(fileContent);
+        console.log('Successfully parsed JSON data, length:', activityData.length);
+        setProcessingProgress(30);
+        updateAnalysisStep(30);
+      } catch (parseError) {
+        console.error('Error parsing JSON:', parseError);
+        throw new Error('Failed to parse activity data. Is it a valid JSON file?');
       }
-    } else {
-      setLoading(true);
-      // Simulate fetching recommendations from an API
-      setTimeout(() => {
-        setRecommendations([
-          `Recommendation for ${searchQuery} 1`,
-          `Recommendation for ${searchQuery} 2`,
-          `Recommendation for ${searchQuery} 3`,
+      
+      setProcessingStage('Analyzing your activities...');
+      setProcessingProgress(40);
+      updateAnalysisStep(40);
+      
+      const progressInterval = setInterval(() => {
+        setProcessingProgress(prev => {
+          const newProgress = prev + 5;
+          if (newProgress <= 85) {
+            updateAnalysisStep(newProgress);
+            return newProgress;
+          }
+          clearInterval(progressInterval);
+          return prev;
+        });
+      }, 1500);
+      
+      console.log('Calling processPlacesData with user ID:', user.id);
+      const result = await processPlacesData(user.id, activityData);
+      console.log('Process result:', result);
+      
+      clearInterval(progressInterval);
+      
+      if (result && result.success) {
+        setProcessingStage('Finalizing your profile...');
+        setProcessingProgress(90);
+        updateAnalysisStep(90);
+        
+        await supabase
+          .from('profiles')
+          .update({ onboarding_completed: true })
+          .eq('id', user.id);
+          
+        setProcessingProgress(100);
+        updateAnalysisStep(100);
+        setProcessingStage('Analysis complete!');
+        setAnalysisComplete(true);
+      } else {
+        throw new Error('Failed to process places data');
+      }
+    } catch (error) {
+      console.error('Error processing activity file:', error);
+      toast.error(error instanceof Error ? error.message : 'There was an error processing your data. Please try again.');
+      setIsProcessing(false);
+    }
+  };
+
+  const handleGenerateInsights = async () => {
+    if (!user) {
+      toast.error('You need to be logged in to generate insights');
+      return;
+    }
+
+    try {
+      setOpenAiKeyError(false);
+      setGeneratingInsights(true);
+      setProcessingStage('Generating personality insights...');
+      setProcessingProgress(20);
+
+      const insightProgressInterval = setInterval(() => {
+        setProcessingProgress(prev => {
+          const newProgress = Math.min(prev + 10, 90);
+          return newProgress;
+        });
+      }, 2000);
+
+      const result = await generatePersonalityInsights(user.id);
+      
+      clearInterval(insightProgressInterval);
+      
+      if (result && result.success) {
+        setProcessingProgress(100);
+        setProcessingStage('Insights generated successfully!');
+        
+        setTimeout(() => {
+          toast.success('Your personality profile has been created!');
+          navigate('/preferences');
+        }, 1500);
+      } else {
+        throw new Error('Failed to generate personality insights');
+      }
+    } catch (error) {
+      console.error('Error generating insights:', error);
+      
+      if (error instanceof Error && error.message.includes('OpenAI API key is missing')) {
+        setOpenAiKeyError(true);
+        toast.error('Missing OpenAI API key. Please contact the administrator.');
+      } else {
+        toast.error(error instanceof Error ? error.message : 'There was an error generating your insights. Please try again.');
+      }
+      
+      setGeneratingInsights(false);
+    }
+  };
+
+  const handleSetupProfile = () => {
+    if (isProcessing) return;
+    
+    if (!user) {
+      toast.error('You need to be logged in to set up your profile');
+      navigate('/auth');
+      return;
+    }
+    
+    if (hasExistingAnalysis) {
+      navigate('/profile');
+      return;
+    }
+    
+    setShowUploadDialog(true);
+  };
+
+  const handleSearchSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!searchInput.trim() || !user) return;
+    
+    const userMessage = {
+      text: searchInput,
+      isUser: true,
+      timestamp: new Date()
+    };
+    
+    setMessages(prevMessages => [...prevMessages, userMessage]);
+    setIsLoadingResponse(true);
+    setIsChatting(true);
+    setSearchInput('');
+    
+    try {
+      if (isAdvancedSearch) {
+        setIsAdvancedSearchLoading(true);
+        
+        const { data, error } = await supabase.functions.invoke('advanced-search', {
+          body: { query: userMessage.text }
+        });
+        
+        if (error) {
+          throw new Error(`Error calling advanced search: ${error.message}`);
+        }
+        
+        setMessages(prevMessages => [
+          ...prevMessages,
+          {
+            text: data.result || "I couldn't find any relevant information. Please try again.",
+            isUser: false,
+            timestamp: new Date()
+          }
         ]);
-        setLoading(false);
-      }, 1000);
+      } else {
+        const { data, error } = await supabase.functions.invoke('chat-assistant', {
+          body: { message: userMessage.text, userId: user.id }
+        });
+        
+        if (error) {
+          throw new Error(`Error calling chat assistant: ${error.message}`);
+        }
+        
+        setMessages(prevMessages => [
+          ...prevMessages,
+          {
+            text: data.reply,
+            isUser: false,
+            timestamp: new Date()
+          }
+        ]);
+      }
+    } catch (error) {
+      console.error('Error sending message:', error);
+      toast.error('Failed to get a response. Please try again.');
+      
+      setMessages(prevMessages => [
+        ...prevMessages,
+        {
+          text: "I'm sorry, I couldn't process your request. Please try again later.",
+          isUser: false,
+          timestamp: new Date()
+        }
+      ]);
+    } finally {
+      setIsLoadingResponse(false);
+      setIsAdvancedSearchLoading(false);
     }
   };
 
   const toggleAdvancedSearch = () => {
-    setAdvancedSearchEnabled(!advancedSearchEnabled);
-    setAdvancedSearchResult(null);
-  };
-
-  const handleFileSelected = async (file: { id: string; name: string; mimeType: string }) => {
-    console.log('Selected file:', file);
-    toast.success(`File "${file.name}" selected! Processing...`);
-
-    try {
-      setIsProcessing(true);
-      const accessToken = await (window as any).google.accounts.oauth2.getAuthInstance().currentUser.get().getAuthResponse().access_token;
-
-      // Fetch the content of the selected file from Google Drive
-      const response = await fetch(`https://www.googleapis.com/drive/v3/files/${file.id}?alt=media`, {
-        headers: {
-          'Authorization': `Bearer ${accessToken}`,
-        },
-      });
-
-      if (!response.ok) {
-        console.error('Error fetching file content:', response);
-        toast.error('Failed to fetch file content from Google Drive');
-        setIsProcessing(false);
-        return;
-      }
-
-      const fileContent = await response.json();
-
-      // Call the processPlacesData function
-      const result = await processPlacesData(user?.id || '', fileContent);
-      console.log('processPlacesData result:', result);
-      toast.success('Places data processed successfully!');
-    } catch (error) {
-      console.error('Error processing places data:', error);
-      toast.error('Failed to process places data: ' + (error as Error).message);
-    } finally {
-      setIsProcessing(false);
+    setIsAdvancedSearch(!isAdvancedSearch);
+    if (!isAdvancedSearch) {
+      toast.info("Advanced search activated with web search capabilities");
+    } else {
+      toast.info("Switched to standard search");
     }
   };
 
-  const handleGeneratePersonalityInsights = async () => {
-    try {
-      setPersonalityInsightsLoading(true);
-      setPersonalityInsights(null);
-      const result = await generatePersonalityInsights(user?.id || '');
-      setPersonalityInsights(result);
-      toast.success('Personality insights generated successfully!');
-    } catch (error) {
-      console.error('Error generating personality insights:', error);
-      toast.error('Failed to generate personality insights: ' + (error as Error).message);
-    } finally {
-      setPersonalityInsightsLoading(false);
-    }
-  };
-
-  const handleUpdateProfile = async (data: any) => {
-    try {
-      setIsProcessing(true);
-      // Call the processUserOnboarding function
-      const result = await processUserOnboarding(user?.id || '', data);
-      console.log('processUserOnboarding result:', result);
-      toast.success('User profile updated successfully!');
-    } catch (error) {
-      console.error('Error updating user profile:', error);
-      toast.error('Failed to update user profile: ' + (error as Error).message);
-    } finally {
-      setIsProcessing(false);
-    }
-  };
-
-  return (
-    <div className="min-h-screen bg-background">
-      <header className="bg-secondary py-4">
-        <div className="container mx-auto px-4 flex items-center justify-between">
-          <h1 className="text-2xl font-bold text-primary">CityScout</h1>
-          <nav>
-            {user ? (
-              <Button variant="destructive" size="sm" onClick={signOut}>
-                Sign Out
-              </Button>
-            ) : null}
-          </nav>
-        </div>
-      </header>
-      
-      <main className="container mx-auto px-4 py-8">
-        <div className="flex flex-col items-center justify-center space-y-8 py-12">
-          <h1 className="text-4xl font-bold text-center text-primary">
-            Discover Your City with AI
-          </h1>
-          <p className="text-center text-muted-foreground max-w-2xl">
-            Explore personalized recommendations for places, activities, and more, tailored to your unique preferences.
-          </p>
-
-          <div className="w-full max-w-2xl space-y-4">
-            <div className="relative">
-              <Input
-                type="text"
-                placeholder="Search for places, activities, or recommendations..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-                className="w-full"
-              />
-              <Button 
-                variant="default" 
-                size="sm" 
-                className="absolute right-2 top-1/2 transform -translate-y-1/2"
-                onClick={handleSearch}
-                disabled={isSearching}
-              >
-                {isSearching ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Search className="h-4 w-4 mr-2" />}
-                Search
-              </Button>
+  if (isProcessing) {
+    return (
+      <div className="min-h-screen flex flex-col bg-background">
+        <Header onLogout={handleLogout} />
+        
+        <main className="flex-1 flex items-center justify-center">
+          <div className="max-w-lg w-full p-8 bg-white dark:bg-gray-800 rounded-lg shadow-lg">
+            <div className="text-center mb-6">
+              {analysisComplete ? (
+                <div className="flex flex-col items-center">
+                  <div className="h-16 w-16 rounded-full bg-green-100 flex items-center justify-center mb-4">
+                    <Check className="h-8 w-8 text-green-600" />
+                  </div>
+                  <h2 className="text-2xl font-bold mb-2">Analysis Complete!</h2>
+                  <p className="text-muted-foreground mb-6">Your activity data has been successfully analyzed.</p>
+                  
+                  {openAiKeyError ? (
+                    <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-md">
+                      <h3 className="text-red-700 font-medium mb-2">Configuration Error</h3>
+                      <p className="text-sm text-red-600 mb-2">
+                        The OpenAI API key is missing in the Supabase Edge Function configuration.
+                      </p>
+                      <p className="text-sm text-red-600">
+                        Please contact the administrator to set up the OPENAI_API_KEY in the Supabase Edge Function Secrets.
+                      </p>
+                    </div>
+                  ) : null}
+                  
+                  <Button 
+                    className="bg-scout-500 hover:bg-scout-600 w-full"
+                    size="lg"
+                    onClick={handleGenerateInsights}
+                    disabled={generatingInsights || openAiKeyError}
+                  >
+                    {generatingInsights ? (
+                      <>
+                        <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                        Generating insights...
+                      </>
+                    ) : (
+                      <>
+                        Let's get your preferences!
+                      </>
+                    )}
+                  </Button>
+                </div>
+              ) : (
+                <>
+                  <h2 className="text-2xl font-bold mb-2">Analyzing Your Activities</h2>
+                  <p className="text-muted-foreground">{processingStage}</p>
+                </>
+              )}
             </div>
             
-            <div className="flex justify-end">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={toggleAdvancedSearch}
-                className={advancedSearchEnabled ? "text-primary" : "text-muted-foreground"}
-              >
-                <Zap className="h-4 w-4 mr-2" />
-                {advancedSearchEnabled ? "Advanced Search Activated" : "Activate Advanced Search"}
-              </Button>
-            </div>
-            
-            {isSearching && (
-              <div className="flex justify-center py-8">
-                <Loader2 className="h-8 w-8 animate-spin text-primary" />
-              </div>
-            )}
-            
-            {advancedSearchResult && (
-              <div className="bg-card p-6 rounded-lg shadow-md mt-4 border border-border">
-                <h3 className="text-xl font-semibold mb-2 flex items-center">
-                  <Zap className="h-5 w-5 mr-2 text-primary" />
-                  Advanced Search Results
-                </h3>
-                <div className="prose prose-sm max-w-none">
-                  {advancedSearchResult.split('\n').map((paragraph, idx) => (
-                    <p key={idx} className={idx > 0 ? "mt-4" : ""}>
-                      {paragraph}
-                    </p>
+            {!analysisComplete && (
+              <div className="space-y-6">
+                <Progress value={processingProgress} className="w-full h-2" />
+                
+                <div className="space-y-5">
+                  {analysisSteps.map((step, index) => (
+                    <div 
+                      key={index} 
+                      className={`flex items-center space-x-4 transition-opacity duration-300 ${
+                        step.status === 'pending' && index > currentStepIndex + 1 ? 'opacity-50' : 'opacity-100'
+                      }`}
+                    >
+                      <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 transition-colors duration-300 ${
+                        step.status === 'completed' 
+                          ? 'bg-green-100' 
+                          : step.status === 'processing'
+                            ? 'bg-scout-100' 
+                            : 'bg-gray-100'
+                      }`}>
+                        {step.status === 'completed' ? (
+                          <Check className="h-5 w-5 text-green-600" />
+                        ) : step.status === 'processing' ? (
+                          <Loader2 className="h-5 w-5 text-scout-500 animate-spin" />
+                        ) : (
+                          <div className="h-5 w-5 rounded-full border-2 border-gray-300"></div>
+                        )}
+                      </div>
+                      <div className="flex-1">
+                        <p className={`font-medium ${
+                          step.status === 'completed' 
+                            ? 'text-green-600' 
+                            : step.status === 'processing'
+                              ? 'text-scout-500' 
+                              : 'text-muted-foreground'
+                        }`}>
+                          {step.text}
+                        </p>
+                      </div>
+                    </div>
                   ))}
                 </div>
               </div>
             )}
-
-            {loading && (
-              <div className="flex justify-center py-8">
-                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            
+            {analysisComplete && generatingInsights && (
+              <div className="mt-6">
+                <Progress value={processingProgress} className="w-full h-2" />
+                <p className="text-sm text-center mt-4 text-muted-foreground">{processingStage}</p>
               </div>
             )}
-            {recommendations.length > 0 && (
-              <div className="space-y-2">
-                <h2 className="text-2xl font-semibold text-primary">Recommendations</h2>
-                <ul className="list-disc list-inside">
-                  {recommendations.map((rec, index) => (
-                    <li key={index} className="text-foreground">{rec}</li>
-                  ))}
-                </ul>
+          </div>
+        </main>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen flex flex-col bg-background">
+      <Header onLogout={handleLogout} />
+      
+      <main className="flex-1 container mx-auto px-4 py-8">
+        <div className="max-w-3xl mx-auto">
+          <div className="mb-8 text-center">
+            <h1 className="text-3xl font-bold mb-2">
+              Welcome {profile?.full_name ? `${profile.full_name.split(' ')[0]}` : ''} to CityScout
+            </h1>
+            <p className="text-lg text-muted-foreground">
+              Your AI companion for exploring the city based on your interests
+            </p>
+            
+            <div className="mt-4 flex justify-center">
+              {hasExistingAnalysis ? (
+                <div className="flex flex-col space-y-3 sm:flex-row sm:space-y-0 sm:space-x-3">
+                  <Button 
+                    onClick={handleSetupProfile}
+                    className="bg-scout-500 hover:bg-scout-600"
+                    size="lg"
+                  >
+                    <UserCog className="mr-2 h-5 w-5" />
+                    View Your Preferences
+                  </Button>
+                  
+                  <Button 
+                    onClick={() => navigate('/about-me')}
+                    variant="outline" 
+                    size="lg"
+                  >
+                    About Me
+                  </Button>
+                  
+                  <AlertDialog open={showDeleteConfirmDialog} onOpenChange={setShowDeleteConfirmDialog}>
+                    <AlertDialogTrigger asChild>
+                      <Button variant="outline" size="lg">
+                        <Trash2 className="mr-2 h-5 w-5" />
+                        Reset & Upload New Data
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Delete existing data?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          This will permanently delete your analyzed data and personality insights. You'll need to upload and analyze a new file.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction 
+                          onClick={deleteUserData} 
+                          className="bg-destructive hover:bg-destructive/90"
+                          disabled={isDataDeletionInProgress}
+                        >
+                          {isDataDeletionInProgress ? (
+                            <>
+                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                              Deleting...
+                            </>
+                          ) : (
+                            "Delete & Start Over"
+                          )}
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                </div>
+              ) : (
+                <Button 
+                  onClick={handleSetupProfile}
+                  className="bg-scout-500 hover:bg-scout-600"
+                  size="lg"
+                  disabled={isProcessing}
+                >
+                  {isProcessing ? (
+                    <>
+                      <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                      Processing...
+                    </>
+                  ) : (
+                    <>
+                      <UserCog className="mr-2 h-5 w-5" />
+                      Setup Profile
+                    </>
+                  )}
+                </Button>
+              )}
+            </div>
+
+            <Dialog open={showUploadDialog} onOpenChange={setShowUploadDialog}>
+              <DialogContent className="sm:max-w-md">
+                <DialogHeader>
+                  <DialogTitle>Upload Your Activity Data</DialogTitle>
+                  <DialogDescription>
+                    Upload your Google Maps activity data to analyze your preferences
+                  </DialogDescription>
+                </DialogHeader>
+                
+                <div className="space-y-4 py-4">
+                  <div className="space-y-2">
+                    <p className="text-sm text-muted-foreground">
+                      Please upload your MyActivity.json file from Google Takeout
+                    </p>
+                    <Input 
+                      ref={fileInputRef} 
+                      type="file" 
+                      accept=".json" 
+                      onChange={handleFileChange}
+                      disabled={isProcessing}
+                    />
+                  </div>
+                  
+                  <Button 
+                    onClick={uploadAndProcessFile}
+                    className="w-full bg-scout-500 hover:bg-scout-600"
+                    disabled={!activityFile || isProcessing}
+                  >
+                    {isProcessing ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Processing...
+                      </>
+                    ) : (
+                      <>
+                        <Upload className="mr-2 h-4 w-4" />
+                        Upload and Analyze
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </DialogContent>
+            </Dialog>
+          </div>
+          
+          {hasExistingAnalysis && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-12">
+              <div className="bg-white dark:bg-gray-800 rounded-lg border p-6 shadow-sm">
+                <div className="mb-4">
+                  <div className="h-12 w-12 rounded-full bg-scout-100 flex items-center justify-center">
+                    <MapPin className="h-6 w-6 text-scout-500" />
+                  </div>
+                </div>
+                <h2 className="text-xl font-semibold mb-2">Discover Places</h2>
+                <p className="text-muted-foreground mb-4">
+                  Find new spots to visit based on your interests and previous activities
+                </p>
+                <Button className="w-full" variant="outline">
+                  <span>Explore</span>
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                </Button>
+              </div>
+              
+              <div className="bg-white dark:bg-gray-800 rounded-lg border p-6 shadow-sm">
+                <div className="mb-4">
+                  <div className="h-12 w-12 rounded-full bg-scout-100 flex items-center justify-center">
+                    <Calendar className="h-6 w-6 text-scout-500" />
+                  </div>
+                </div>
+                <h2 className="text-xl font-semibold mb-2">Plan Your Day</h2>
+                <p className="text-muted-foreground mb-4">
+                  Get personalized itineraries that fit your schedule and preferences
+                </p>
+                <Button className="w-full" variant="outline">
+                  <span>Plan Now</span>
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          )}
+          
+          <div className="bg-gradient-to-br from-scout-500/10 to-scout-400/5 rounded-2xl p-8 border border-scout-200">
+            <div className="text-center mb-6">
+              <h2 className="text-2xl font-bold mb-2">Where to next?</h2>
+              <p className="text-muted-foreground">
+                Let CityScout find your next adventure
+              </p>
+            </div>
+            
+            <form onSubmit={handleSearchSubmit} className="w-full mb-2">
+              <div className="relative flex">
+                <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                  <Search className="h-5 w-5 text-muted-foreground" />
+                </div>
+                <input
+                  type="text"
+                  className="bg-white dark:bg-gray-800 border border-input h-12 rounded-lg pl-10 pr-16 w-full focus:outline-none focus:ring-2 focus:ring-scout-500 focus:border-transparent"
+                  placeholder={isAdvancedSearch ? "Ask anything with web search capabilities..." : "Search for places or activities..."}
+                  value={searchInput}
+                  onChange={(e) => setSearchInput(e.target.value)}
+                />
+                <button 
+                  type="submit" 
+                  className="absolute right-2 top-2 p-2 rounded-md text-scout-500 hover:bg-scout-50 dark:hover:bg-gray-700 transition-colors"
+                  disabled={!searchInput.trim() || isLoadingResponse}
+                >
+                  {isLoadingResponse ? (
+                    <Loader2 className="h-5 w-5 animate-spin" />
+                  ) : (
+                    <Send className="h-5 w-5" />
+                  )}
+                </button>
+              </div>
+            </form>
+            
+            <div className="flex justify-center mb-6">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={toggleAdvancedSearch}
+                className={cn(
+                  "flex items-center gap-2",
+                  isAdvancedSearch ? "bg-scout-100 text-scout-700 border-scout-200" : ""
+                )}
+              >
+                <Sparkles className="h-4 w-4" />
+                {isAdvancedSearch ? "Advanced Search Active" : "Activate Advanced Search"}
+              </Button>
+            </div>
+            
+            {isChatting && hasExistingAnalysis && (
+              <div className="max-h-[400px] overflow-y-auto p-4 mb-4 bg-white dark:bg-gray-800 rounded-lg shadow-sm border">
+                {messages.map((message, index) => (
+                  <div 
+                    key={index} 
+                    className={`flex ${message.isUser ? 'justify-end' : 'justify-start'} mb-4`}
+                  >
+                    <div 
+                      className={`flex items-start space-x-2 max-w-[80%] ${
+                        message.isUser ? 'flex-row-reverse space-x-reverse' : 'flex-row'
+                      }`}
+                    >
+                      <div 
+                        className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${
+                          message.isUser ? 'bg-scout-500' : 'bg-gray-200 dark:bg-gray-700'
+                        }`}
+                      >
+                        {message.isUser ? (
+                          <User className="h-5 w-5 text-white" />
+                        ) : (
+                          <Bot className="h-5 w-5 text-scout-500 dark:text-scout-400" />
+                        )}
+                      </div>
+                      
+                      <div 
+                        className={`p-3 rounded-lg ${
+                          message.isUser 
+                            ? 'bg-scout-500 text-white' 
+                            : 'bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100 border dark:border-gray-700'
+                        }`}
+                      >
+                        {message.isUser ? (
+                          <div className="whitespace-pre-wrap">{message.text}</div>
+                        ) : (
+                          <div className={cn("prose prose-sm max-w-none", 
+                               message.isUser ? "prose-invert" : "")}>
+                            {formatMarkdown(message.text)}
+                          </div>
+                        )}
+                        <div 
+                          className={`text-xs mt-1 ${
+                            message.isUser ? 'text-scout-100' : 'text-gray-500 dark:text-gray-400'
+                          }`}
+                        >
+                          {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+                {isLoadingResponse && (
+                  <div className="flex justify-start mb-4">
+                    <div className="flex items-start space-x-2">
+                      <div className="flex-shrink-0 w-8 h-8 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center">
+                        <Bot className="h-5 w-5 text-scout-500 dark:text-scout-400" />
+                      </div>
+                      <div className="p-3 rounded-lg bg-gray-100 dark:bg-gray-800 border dark:border-gray-700">
+                        {isAdvancedSearchLoading ? (
+                          <div className="flex items-center space-x-2">
+                            <Loader2 className="h-5 w-5 animate-spin text-scout-500" />
+                            <span className="text-sm text-muted-foreground">Searching the web for answers...</span>
+                          </div>
+                        ) : (
+                          <Loader2 className="h-5 w-5 animate-spin text-scout-500" />
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
+                <div ref={messagesEndRef} />
               </div>
             )}
           </div>
         </div>
-
-        {user && (
-          <Tabs defaultValue="profile" className="w-full max-w-4xl mx-auto">
-            <TabsList>
-              <TabsTrigger value="profile">Profile</TabsTrigger>
-              <TabsTrigger value="data">Data Processing</TabsTrigger>
-              <TabsTrigger value="insights">Personality Insights</TabsTrigger>
-            </TabsList>
-            <TabsContent value="profile" className="space-y-4">
-              <Card>
-                <CardHeader>
-                  <CardTitle>User Profile</CardTitle>
-                  <CardDescription>View and update your profile information.</CardDescription>
-                </CardHeader>
-                <CardContent className="grid gap-4">
-                  <div className="flex items-center space-x-4">
-                    <Avatar>
-                      {profileData?.avatarUrl ? (
-                        <AvatarImage src={profileData?.avatarUrl} alt={profileData?.firstName} />
-                      ) : (
-                        <AvatarFallback>{profileData?.firstName?.[0]}{profileData?.lastName?.[0]}</AvatarFallback>
-                      )}
-                    </Avatar>
-                    <div>
-                      <p className="text-sm font-medium leading-none">{profileData?.firstName} {profileData?.lastName}</p>
-                      <p className="text-sm text-muted-foreground">{profileData?.email}</p>
-                    </div>
-                  </div>
-
-                  <Form {...profileForm}>
-                    <form onSubmit={profileForm.handleSubmit(onSubmit)} className="space-y-4">
-                      <FormField
-                        control={profileForm.control}
-                        name="firstName"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>First Name</FormLabel>
-                            <FormControl>
-                              <Input placeholder="First Name" {...field} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      <FormField
-                        control={profileForm.control}
-                        name="lastName"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Last Name</FormLabel>
-                            <FormControl>
-                              <Input placeholder="Last Name" {...field} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      <Button type="submit">Update Profile</Button>
-                    </form>
-                  </Form>
-                </CardContent>
-                <CardFooter>
-                  <Button onClick={() => handleUpdateProfile(profileData)} disabled={isProcessing}>
-                    {isProcessing ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Updating...
-                      </>
-                    ) : (
-                      'Update Profile'
-                    )}
-                  </Button>
-                </CardFooter>
-              </Card>
-            </TabsContent>
-            <TabsContent value="data">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Data Processing</CardTitle>
-                  <CardDescription>Process your Google Maps data to get personalized insights.</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <GDrivePicker onFileSelected={handleFileSelected} accept={['application/json']} />
-                </CardContent>
-                <CardFooter>
-                  {isProcessing ? (
-                    <Button disabled>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Processing...
-                    </Button>
-                  ) : (
-                    <p className="text-sm text-muted-foreground">
-                      Select a JSON file from Google Drive to process your data.
-                    </p>
-                  )}
-                </CardFooter>
-              </Card>
-            </TabsContent>
-            <TabsContent value="insights">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Personality Insights</CardTitle>
-                  <CardDescription>Generate personality insights based on your processed data.</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  {personalityInsights ? (
-                    <div className="space-y-4">
-                      <h3 className="text-xl font-semibold">Generated Insights:</h3>
-                      <pre className="whitespace-pre-wrap">
-                        {JSON.stringify(personalityInsights, null, 2)}
-                      </pre>
-                    </div>
-                  ) : (
-                    <p className="text-sm text-muted-foreground">
-                      Click the button below to generate personality insights.
-                    </p>
-                  )}
-                </CardContent>
-                <CardFooter>
-                  <Button onClick={handleGeneratePersonalityInsights} disabled={personalityInsightsLoading}>
-                    {personalityInsightsLoading ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Generating...
-                      </>
-                    ) : (
-                      'Generate Insights'
-                    )}
-                  </Button>
-                </CardFooter>
-              </Card>
-            </TabsContent>
-          </Tabs>
-        )}
       </main>
       
-      <footer className="bg-secondary py-4 text-center text-muted-foreground">
-        <p>&copy; 2024 CityScout. All rights reserved.</p>
+      <footer className="bg-muted py-6">
+        <div className="container mx-auto px-4 text-center text-sm text-muted-foreground">
+          <p>© 2025 CityScout - Your AI Companion for City Exploration</p>
+        </div>
       </footer>
     </div>
   );
