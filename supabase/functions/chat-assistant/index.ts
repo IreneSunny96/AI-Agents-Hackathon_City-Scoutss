@@ -1,3 +1,4 @@
+
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -134,7 +135,7 @@ serve(async (req) => {
   
   try {
     // Get the JSON body
-    const { message, userId } = await req.json();
+    const { message, userId, stream = true } = await req.json();
 
     if (!message) {
       return new Response(
@@ -195,27 +196,32 @@ Also talk about the Vibe of the places
 8. When recommending places, consider the user's documented interests from their profile.
 9. Format your responses clearly with paragraph breaks. Don't use markdown formatting.`;
 
-    // Call OpenAI API with gpt-4o-mini model
-    console.log('Calling OpenAI API with gpt-4o-mini model');
+    // Call OpenAI API with o3-mini model
+    console.log('Calling OpenAI API with o3-mini model');
+    
+    // Prepare request payload
+    const openAIPayload = {
+      model: "o3-mini",
+      messages: [
+        {
+          role: "system",
+          content: systemPrompt
+        },
+        {
+          role: "user",
+          content: message
+        }
+      ],
+      stream: stream
+    };
+    
     const openaiResponse = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         "Authorization": `Bearer ${OPENAI_API_KEY}`
       },
-      body: JSON.stringify({
-        model: "o3-mini",
-        messages: [
-          {
-            role: "system",
-            content: systemPrompt
-          },
-          {
-            role: "user",
-            content: message
-          }
-        ],
-      })
+      body: JSON.stringify(openAIPayload)
     });
 
     if (!openaiResponse.ok) {
@@ -224,15 +230,33 @@ Also talk about the Vibe of the places
       throw new Error(`OpenAI API error: ${JSON.stringify(errorData)}`);
     }
 
-    const responseData = await openaiResponse.json();
-    
-    // Log the response
-    console.log("OpenAI API response:", JSON.stringify(responseData));
-    
-    return new Response(
-      JSON.stringify(responseData),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    // If streaming is enabled, stream the response to the client
+    if (stream) {
+      console.log("Streaming response from OpenAI");
+      
+      // Forward the streaming response directly
+      const readableStream = openaiResponse.body;
+      if (!readableStream) {
+        throw new Error("No readable stream available from OpenAI response");
+      }
+      
+      // Return the streamed response
+      return new Response(readableStream, { 
+        headers: { 
+          ...corsHeaders, 
+          "Content-Type": "text/event-stream" 
+        } 
+      });
+    } else {
+      // Handle non-streaming response as before
+      const responseData = await openaiResponse.json();
+      console.log("OpenAI API response:", JSON.stringify(responseData));
+      
+      return new Response(
+        JSON.stringify(responseData),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
   } catch (error) {
     console.error("Error processing request:", error);
     

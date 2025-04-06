@@ -11,10 +11,12 @@ import { useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 
 interface Message {
+  id: string;
   text: string;
   isUser: boolean;
   timestamp: Date;
   annotations?: Annotation[];
+  isStreaming?: boolean;
 }
 
 interface Annotation {
@@ -128,6 +130,23 @@ const renderTextWithAnnotations = (text: string, annotations?: Annotation[]) => 
   return formatMarkdown(result);
 };
 
+// Function to parse SSE stream
+const parseSSE = (data: string) => {
+  const message = data.replace(/^data: /, '').trim();
+  
+  // Return null for empty messages or [DONE] marker
+  if (!message || message === '[DONE]') {
+    return null;
+  }
+  
+  try {
+    return JSON.parse(message);
+  } catch (error) {
+    console.error('Error parsing SSE message:', error, 'Data:', data);
+    return null;
+  }
+};
+
 const ChatInterface: React.FC = () => {
   const [input, setInput] = useState('');
   const [messages, setMessages] = useState<Message[]>([]);
@@ -135,11 +154,16 @@ const ChatInterface: React.FC = () => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { user } = useAuth();
   const navigate = useNavigate();
+  const abortControllerRef = useRef<AbortController | null>(null);
+
+  // Helper function to generate unique IDs
+  const generateId = () => Math.random().toString(36).substring(2, 15);
 
   useEffect(() => {
     if (messages.length === 0) {
       setMessages([
         {
+          id: generateId(),
           text: "Hi there! I'm your CityScout assistant. I can help you find places to visit, plan trips, or explore cities based on your interests. What would you like to know?",
           isUser: false,
           timestamp: new Date()
@@ -152,6 +176,15 @@ const ChatInterface: React.FC = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
+  // Cleanup function to abort any pending requests when component unmounts
+  useEffect(() => {
+    return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    };
+  }, []);
+
   const handleSendMessage = async () => {
     if (!input.trim()) return;
     if (!user) {
@@ -159,7 +192,11 @@ const ChatInterface: React.FC = () => {
       return;
     }
 
+    // Create a unique ID for the message
+    const messageId = generateId();
+    
     const userMessage = {
+      id: messageId,
       text: input,
       isUser: true,
       timestamp: new Date()
@@ -169,54 +206,105 @@ const ChatInterface: React.FC = () => {
     setInput('');
     setIsLoading(true);
     
-    try {
-      const { data, error } = await supabase.functions.invoke('chat-assistant', {
-        body: { message: input, userId: user.id }
-      });
-      
-      if (error) {
-        throw new Error(`Error calling chat assistant: ${error.message}`);
-      }
-      
-      // Log the response to debug
-      console.log('Response from chat assistant:', data);
-      
-      // Check for different response formats
-      let responseText = '';
-      
-      if (data.choices && data.choices[0]?.message?.content) {
-        // Handle standard OpenAI response format
-        responseText = data.choices[0].message.content;
-      } else if (data.reply) {
-        // Handle custom reply format (if still used as fallback)
-        responseText = data.reply;
-      } else {
-        // If no recognizable format, show error
-        throw new Error('Unexpected response format from chat assistant');
-      }
-      
-      const responseMessage: Message = {
-        text: responseText,
+    // Create a unique ID for the response message
+    const responseId = generateId();
+    
+    // Add an empty response message that will be updated with streaming content
+    setMessages(prev => [
+      ...prev, 
+      {
+        id: responseId,
+        text: '',
         isUser: false,
         timestamp: new Date(),
-        annotations: data.choices?.[0]?.annotations || []
-      };
+        isStreaming: true
+      }
+    ]);
+    
+    // Create an AbortController to cancel the fetch request if needed
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    abortControllerRef.current = new AbortController();
+    
+    try {
+      const response = await supabase.functions.invoke('chat-assistant', {
+        body: { message: input, userId: user.id, stream: true },
+        signal: abortControllerRef.current.signal
+      });
       
-      setMessages((prev) => [...prev, responseMessage]);
+      if (!response.data) {
+        throw new Error('No response data from chat assistant');
+      }
+      
+      // Handle streaming response
+      const reader = response.data.getReader();
+      const decoder = new TextDecoder();
+      let fullText = '';
+      
+      while (true) {
+        const { done, value } = await reader.read();
+        
+        if (done) {
+          break;
+        }
+        
+        // Decode the received chunk
+        const chunk = decoder.decode(value, { stream: true });
+        const lines = chunk.split('\n').filter(line => line.trim() !== '');
+        
+        // Process each line in the chunk
+        for (const line of lines) {
+          const parsedData = parseSSE(line);
+          
+          if (!parsedData) continue;
+          
+          // Handle content delta
+          if (parsedData.choices && parsedData.choices[0]?.delta?.content) {
+            const contentDelta = parsedData.choices[0].delta.content;
+            fullText += contentDelta;
+            
+            // Update the message text with the accumulated content
+            setMessages(prev => prev.map(msg => 
+              msg.id === responseId
+                ? { ...msg, text: fullText, isStreaming: true }
+                : msg
+            ));
+          }
+        }
+      }
+      
+      // Mark the message as no longer streaming once complete
+      setMessages(prev => prev.map(msg => 
+        msg.id === responseId
+          ? { ...msg, isStreaming: false }
+          : msg
+      ));
+      
     } catch (error) {
       console.error('Error sending message:', error);
+      
+      // Check if this was an intentional abort
+      if (error instanceof DOMException && error.name === 'AbortError') {
+        console.log('Request was aborted');
+        return;
+      }
+      
       toast.error('Failed to get a response. Please try again.');
       
-      setMessages((prev) => [
-        ...prev,
-        {
-          text: "I'm sorry, I couldn't process your request. Please try again later.",
-          isUser: false,
-          timestamp: new Date()
-        }
-      ]);
+      // Update the streaming message to show the error
+      setMessages(prev => prev.map(msg => 
+        msg.id === responseId
+          ? { 
+              ...msg, 
+              text: "I'm sorry, I couldn't process your request. Please try again later.",
+              isStreaming: false 
+            }
+          : msg
+      ));
     } finally {
       setIsLoading(false);
+      abortControllerRef.current = null;
     }
   };
 
@@ -243,9 +331,9 @@ const ChatInterface: React.FC = () => {
       </CardHeader>
       <CardContent className="flex flex-col h-full p-4 pt-0">
         <div className="flex-1 overflow-y-auto mb-4 space-y-4">
-          {messages.map((message, index) => (
+          {messages.map((message) => (
             <div 
-              key={index} 
+              key={message.id} 
               className={`flex ${message.isUser ? 'justify-end' : 'justify-start'}`}
             >
               <div 
@@ -280,6 +368,9 @@ const ChatInterface: React.FC = () => {
                       {message.annotations ? 
                         renderTextWithAnnotations(message.text, message.annotations) : 
                         formatMarkdown(message.text)}
+                      {message.isStreaming && (
+                        <span className="inline-block animate-pulse">▌</span>
+                      )}
                     </div>
                   )}
                   
@@ -316,7 +407,7 @@ const ChatInterface: React.FC = () => {
             </div>
           ))}
           
-          {isLoading && (
+          {isLoading && !messages.some(m => m.isStreaming) && (
             <div className="flex justify-start">
               <div className="flex items-start space-x-2 max-w-[80%]">
                 <div className="flex-shrink-0 w-8 h-8 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center">
