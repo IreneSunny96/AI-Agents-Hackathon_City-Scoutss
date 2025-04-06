@@ -3,11 +3,12 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import Header from '@/components/layout/Header';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { MapPin, Calendar, User, Loader2, Hash } from 'lucide-react';
+import { MapPin, Calendar, User, Loader2, Hash, ArrowLeft } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
+import { Button } from '@/components/ui/button';
 import { Tables } from '@/integrations/supabase/types';
 
 interface PersonalityTiles {
@@ -79,6 +80,10 @@ const Profile = () => {
       toast.error('Failed to log out. Please try again.');
     }
   };
+
+  const handleGoBack = () => {
+    navigate(-1);
+  };
   
   if (loading) {
     return (
@@ -101,13 +106,23 @@ const Profile = () => {
       
       <main className="flex-1 container mx-auto px-4 py-8">
         <div className="max-w-4xl mx-auto">
-          <div className="mb-8">
-            <h1 className="text-3xl font-bold mb-2">
-              Your Personality Profile
-            </h1>
-            <p className="text-lg text-muted-foreground">
-              Based on your activity data, we've generated insights about your preferences
-            </p>
+          <div className="flex items-center mb-8">
+            <Button 
+              variant="outline" 
+              size="icon" 
+              className="mr-4"
+              onClick={handleGoBack}
+            >
+              <ArrowLeft className="h-4 w-4" />
+            </Button>
+            <div>
+              <h1 className="text-3xl font-bold mb-2">
+                Your Personality Profile
+              </h1>
+              <p className="text-lg text-muted-foreground">
+                Based on your activity data, we've generated insights about your preferences
+              </p>
+            </div>
           </div>
           
           {!personalityTiles ? (
